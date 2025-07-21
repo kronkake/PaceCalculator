@@ -10,28 +10,13 @@ import {
 } from "../../utils/paceConversation";
 import { CountInput } from "../../components/CountInput";
 import { CountInputLayout } from "../../layout/CountLayout";
+import { DistanceList, DistanceListItem } from "../../components/ListItems";
 
 const Wrap = styled.div`
   display: flex;
   flex-direction: column;
   gap: 12px;
   width: 100%;
-`;
-
-const DistanceList = styled.ol`
-  padding: 0;
-  margin: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 7.5px;
-`;
-
-const DistanceListItem = styled.li`
-  padding: 12px;
-  background-color: #f5f5f5;
-  border-radius: 5px;
-  border-left: 4px solid #6200ee;
 `;
 
 interface formattedDistances {

@@ -2,7 +2,7 @@ import React, { ChangeEvent, FocusEvent, useEffect, useState } from "react";
 import { TextInput } from "../../components/TextInput";
 import { Select } from "../../components/Select";
 import styled from "styled-components";
-import { unitFormater } from "../../utils/paceFormats";
+import { formatTime, unitFormater } from "../../utils/paceFormats";
 import { distances } from "../../units/units";
 import { CountInput } from "../../components/CountInput";
 import { CountInputLayout } from "../../layout/CountLayout";
@@ -11,6 +11,7 @@ import {
   calculateRequiredSpeed,
   convertKmToPace,
 } from "../../utils/paceConversation";
+import { DistanceList, DistanceListItem } from "../../components/ListItems";
 
 const Wrap = styled.div`
   display: flex;
@@ -39,33 +40,6 @@ const OrText = styled.span`
   font-size: 0.9rem;
   padding: 0 8px;
   align-self: center;
-`;
-
-const ResultsContainer = styled.ol`
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 16px;
-  padding: 0;
-  list-style: none;
-`;
-
-const ResultItem = styled.li`
-  padding: 12px;
-  background-color: #f5f5f5;
-  border-radius: 5px;
-  border-left: 4px solid #6200ee;
-`;
-
-const ResultLabel = styled.span`
-  font-weight: 500;
-  color: #333;
-`;
-
-const ResultValue = styled.span`
-  font-size: 1.1rem;
-  color: #6200ee;
-  margin-left: 8px;
 `;
 
 interface CalculatedResults {
@@ -168,9 +142,9 @@ export const DistanceToPace = () => {
         seconds: state.seconds,
       }
     );
-    const paceUnits = convertKmToPace(requiredSpeedKmPerHour);
+    const time = convertKmToPace(requiredSpeedKmPerHour);
     setResults({
-      pacePerKm: `${paceUnits.hours}:${paceUnits.minutes}:${paceUnits.seconds}`,
+      pacePerKm: formatTime(time),
       kmPerHour: requiredSpeedKmPerHour,
     });
   }, [state.hours, state.minutes, state.seconds, state.distance]);
@@ -238,16 +212,14 @@ export const DistanceToPace = () => {
         </InputGroup>
       </Label>
 
-      <ResultsContainer>
-        <ResultItem>
-          <ResultLabel>Minutter pr kilometer:</ResultLabel>
-          <ResultValue>{results.pacePerKm}</ResultValue>
-        </ResultItem>
-        <ResultItem>
-          <ResultLabel>Kilometer i timen:</ResultLabel>
-          <ResultValue>{results.kmPerHour} km/t</ResultValue>
-        </ResultItem>
-      </ResultsContainer>
+      <DistanceList>
+        <DistanceListItem>
+          Minutter pr kilometer: {results.pacePerKm}
+        </DistanceListItem>
+        <DistanceListItem>
+          Kilometer i timen: {results.kmPerHour} km/t
+        </DistanceListItem>
+      </DistanceList>
     </Wrap>
   );
 };
