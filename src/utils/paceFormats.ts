@@ -1,4 +1,5 @@
-import { PaceCalcUnits } from "../types/types";
+import { PaceCalcUnits, PaceFormat } from "../types/types";
+import { convertPaceToSeconds } from "./paceConversation";
 
 export const fancyTimeFormat = (duration: number) => {
   // Hours, minutes and seconds
@@ -6,12 +7,30 @@ export const fancyTimeFormat = (duration: number) => {
   const mins = ~~((duration % 3600) / 60);
   const secs = ~~duration % 60;
 
-  // Output like "1:01" or "4:03:59" or "123:03:59"
-  if (hrs > 0) {
-    return `${hrs}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-  }
+  return {
+    minutes: mins.toString().padStart(2, "0"),
+    seconds: secs.toString().padStart(2, "0"),
+    hours: hrs.toString().padStart(2, "0"),
+  };
+};
 
-  return `${mins}:${secs.toString().padStart(2, "0")}`;
+export const joinStrings = (
+  strings: Array<string | undefined>,
+  delimiter: string
+) => {
+  return strings.filter(Boolean).join(delimiter);
+};
+
+export const formatTime = (paceFormat: PaceFormat) => {
+  if (convertPaceToSeconds(paceFormat) === 0) return "";
+  return joinStrings(
+    [
+      paceFormat.hours === "00" ? undefined : paceFormat.hours,
+      paceFormat.minutes === "00" ? undefined : paceFormat.minutes,
+      paceFormat.seconds,
+    ],
+    ":"
+  );
 };
 
 export const formatPaceTime = (minutes: number, seconds: number) => {
@@ -25,43 +44,45 @@ export const formatPaceTime = (minutes: number, seconds: number) => {
     return "60:00";
   }
 
-  return `${finalMinutes.toString().padStart(2, "0")}:${finalSeconds.toString().padStart(2, "0")}`;
+  return `${finalMinutes.toString().padStart(2, "0")}:${finalSeconds
+    .toString()
+    .padStart(2, "0")}`;
 };
 
-export const unitFormater: Record<PaceCalcUnits, (newValue: string) => string> = {
-  km: (value: string) => {
-    return value;
-  },
-  pace: (value: string) => {
-    // Remove any non-digit and non-colon characters
-    const cleaned = value.replace(/[^\d:]/g, "");
-
-    if (!cleaned) return "";
-
-    // Handle MM:SS format
-    if (cleaned.includes(":")) {
-      const parts = cleaned.split(":");
-      if (parts.length === 2) {
-        const minutes = parseInt(parts[0] || "0", 10);
-        const seconds = parseInt(parts[1] || "0", 10);
-        return formatPaceTime(minutes, seconds);
+export const unitFormater: Record<PaceCalcUnits, (newValue: string) => string> =
+  {
+    km: (value: string) => {
+      const km = Number(value);
+      return km.toFixed(2);
+    },
+    seconds: (value: string) => {
+      const seconds = Number(value);
+      if (seconds > 59) {
+        return "59";
+      } else if (seconds < 0) {
+        return "0";
       }
-    }
-
-    // Handle digit-only input
-    if (/^\d+$/.test(cleaned)) {
-      const num = parseInt(cleaned, 10);
-
-      if (num < 60) {
-        // Less than 60, treat as minutes
-        return formatPaceTime(num, 0);
-      } else {
-        // 60 or above, treat as seconds and convert to MM:SS
-        const minutes = Math.floor(num / 60);
-        const seconds = num % 60;
-        return formatPaceTime(minutes, seconds);
+      return value.padStart(2, "0");
+    },
+    minutes: (value: string) => {
+      const minutes = Number(value);
+      if (minutes > 59) {
+        return "59";
+      } else if (minutes < 0) {
+        return "0";
       }
-    }
-    return value;
-  },
-};
+      return value.padStart(2, "0");
+    },
+    hours: (value: string) => {
+      const hours = Number(value);
+      if (hours > 23) {
+        return "23";
+      } else if (hours < 0) {
+        return "00";
+      }
+      return value.padStart(2, "0");
+    },
+    distance: (value: string) => {
+      return value;
+    },
+  };

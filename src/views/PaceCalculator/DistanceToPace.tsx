@@ -2,8 +2,15 @@ import React, { ChangeEvent, FocusEvent, useEffect, useState } from "react";
 import { TextInput } from "../../components/TextInput";
 import { Select } from "../../components/Select";
 import styled from "styled-components";
-import { fancyTimeFormat } from "../../utils/paceFormats";
+import { unitFormater } from "../../utils/paceFormats";
 import { distances } from "../../units/units";
+import { CountInput } from "../../components/CountInput";
+import { CountInputLayout } from "../../layout/CountLayout";
+import { DistanceToPaceUnits } from "../../types/types";
+import {
+  calculateRequiredSpeed,
+  convertKmToPace,
+} from "../../utils/paceConversation";
 
 const Wrap = styled.div`
   display: flex;
@@ -61,50 +68,6 @@ const ResultValue = styled.span`
   margin-left: 8px;
 `;
 
-// Helper function to convert time string (HH:MM:SS or MM:SS) to seconds
-const convertTimeToSeconds = (timeStr: string): number => {
-  if (!timeStr) return 0;
-
-  const parts = timeStr.split(":").map((part) => parseInt(part, 10) || 0);
-
-  if (parts.length === 3) {
-    // HH:MM:SS format
-    return parts[0] * 3600 + parts[1] * 60 + parts[2];
-  } else if (parts.length === 2) {
-    // MM:SS format
-    return parts[0] * 60 + parts[1];
-  } else if (parts.length === 1) {
-    // Just seconds
-    return parts[0];
-  }
-
-  return 0;
-};
-
-// Calculate pace per km from total time and distance
-const calculatePaceFromTimeAndDistance = (timeStr: string, distanceKm: number): string => {
-  if (!timeStr || !distanceKm) return "";
-
-  const totalSeconds = convertTimeToSeconds(timeStr);
-
-  const pacePerKmSeconds = totalSeconds / distanceKm;
-  return fancyTimeFormat(pacePerKmSeconds);
-};
-
-// Calculate km/h from total time and distance
-const calculateKmPerHour = (timeStr: string, distanceKm: number): string => {
-  if (!timeStr || !distanceKm) return "";
-
-  const totalSeconds = convertTimeToSeconds(timeStr);
-
-  const hours = totalSeconds / 3600;
-  const kmPerHour = distanceKm / hours;
-
-  return kmPerHour.toFixed(2);
-};
-
-type DistanceToPaceUnits = "time" | "distance";
-
 interface CalculatedResults {
   pacePerKm: string;
   kmPerHour: string;
@@ -112,7 +75,9 @@ interface CalculatedResults {
 
 export const DistanceToPace = () => {
   const initialState: Record<DistanceToPaceUnits, string> = {
-    time: "",
+    hours: "",
+    minutes: "",
+    seconds: "",
     distance: "",
   };
 
@@ -122,29 +87,21 @@ export const DistanceToPace = () => {
     label: `${distance.label} (${distance.km}km)`,
   }));
 
-  const calculateState: Record<DistanceToPaceUnits, (newValue: string) => CalculatedResults> = {
-    time: (newValue: string) => {
-      const distanceNum = parseFloat(state.distance);
-      return {
-        pacePerKm: calculatePaceFromTimeAndDistance(newValue, distanceNum),
-        kmPerHour: calculateKmPerHour(newValue, distanceNum),
-      };
+  const calculateState: Record<
+    string,
+    (newValue: string) => Partial<typeof initialState>
+  > = {
+    hours: (newValue: string) => {
+      return { hours: newValue };
+    },
+    minutes: (newValue: string) => {
+      return { minutes: newValue };
+    },
+    seconds: (newValue: string) => {
+      return { seconds: newValue };
     },
     distance: (newValue: string) => {
-      const distanceNum = parseFloat(newValue);
-      return {
-        pacePerKm: calculatePaceFromTimeAndDistance(state.time, distanceNum),
-        kmPerHour: calculateKmPerHour(state.time, distanceNum),
-      };
-    },
-  };
-
-  const unitFormater: Record<DistanceToPaceUnits, (newValue: string) => string> = {
-    time: (value: string) => {
-      return value;
-    },
-    distance: (value: string) => {
-      return value;
+      return { distance: newValue };
     },
   };
 
@@ -154,16 +111,17 @@ export const DistanceToPace = () => {
     kmPerHour: "",
   });
 
-  const onChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const targetName = e.target.name as keyof typeof initialState;
+  const updateStateValue = (
+    fieldName: DistanceToPaceUnits,
+    newValue: string
+  ) => {
+    const formattedValue = unitFormater[fieldName](newValue);
+    const newState = calculateState[fieldName](formattedValue);
 
-    setState({
-      ...state,
-      [targetName]: e.target.value,
-    });
+    setState((prevState) => ({ ...prevState, ...newState }));
   };
 
-  const onSelectChange = (e: ChangeEvent<HTMLSelectElement>) => {
+  const onChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const targetName = e.target.name as keyof typeof initialState;
 
     setState({
@@ -174,46 +132,83 @@ export const DistanceToPace = () => {
 
   const calculate = (e: FocusEvent<HTMLInputElement>) => {
     const name = e.target.name as keyof typeof initialState;
-    const formattedValue = unitFormater[name](e.target.value);
-    if (!formattedValue) {
-      setResults({ pacePerKm: "", kmPerHour: "" });
-      return;
-    }
+    const currentValue = state[name];
+    const newValue = e.target.value;
 
-    const newResults = calculateState[name](formattedValue);
-    setResults(newResults);
+    // Only trigger calculations if the value actually changed
+    if (currentValue !== newValue) {
+      updateStateValue(name, newValue);
+    }
   };
 
   const doSelectCalculations = (e: ChangeEvent<HTMLSelectElement>) => {
     const name = e.target.name as keyof typeof initialState;
     const formattedValue = unitFormater[name](e.target.value);
-    if (!formattedValue) {
-      setResults({ pacePerKm: "", kmPerHour: "" });
-      return;
-    }
 
-    const newResults = calculateState[name](formattedValue);
-    setResults(newResults);
+    const newState = calculateState[name](formattedValue);
+    setState((prevState) => ({ ...prevState, ...newState }));
+  };
+
+  const handleIncrement = (fieldName: DistanceToPaceUnits) => {
+    const newValue = Number(state[fieldName] || "0") + 1;
+    updateStateValue(fieldName, newValue.toString());
+  };
+
+  const handleDecrement = (fieldName: DistanceToPaceUnits) => {
+    const newValue = Math.max(0, Number(state[fieldName] || "0") - 1);
+    updateStateValue(fieldName, newValue.toString());
   };
 
   useEffect(() => {
-    if (state.time && state.distance) {
-      const distanceNum = parseFloat(state.distance);
-      setResults({
-        pacePerKm: calculatePaceFromTimeAndDistance(state.time, distanceNum),
-        kmPerHour: calculateKmPerHour(state.time, distanceNum),
-      });
-    } else {
-      setResults({ pacePerKm: "", kmPerHour: "" });
-    }
-  }, [state.time, state.distance]);
+    const requiredSpeedKmPerHour = calculateRequiredSpeed(
+      parseFloat(state.distance ?? 0),
+      {
+        hours: state.hours,
+        minutes: state.minutes,
+        seconds: state.seconds,
+      }
+    );
+    const paceUnits = convertKmToPace(requiredSpeedKmPerHour);
+    setResults({
+      pacePerKm: `${paceUnits.hours}:${paceUnits.minutes}:${paceUnits.seconds}`,
+      kmPerHour: requiredSpeedKmPerHour,
+    });
+  }, [state.hours, state.minutes, state.seconds, state.distance]);
 
   return (
     <Wrap>
-      <Label>
-        Tid (HH:MM:SS eller MM:SS)
-        <TextInput placeholder="1:23:45 eller 23:45" name="time" value={state.time} onChange={onChange} onBlur={calculate} />
-      </Label>
+      <CountInputLayout>
+        <CountInput
+          placeholder="00"
+          label="Timer"
+          onIncrement={() => handleIncrement("hours")}
+          onDecrement={() => handleDecrement("hours")}
+          name="hours"
+          value={state.hours}
+          onChange={onChange}
+          onBlur={calculate}
+        />
+        <CountInput
+          placeholder="00"
+          label="Minutter"
+          onIncrement={() => handleIncrement("minutes")}
+          onDecrement={() => handleDecrement("minutes")}
+          name="minutes"
+          value={state.minutes}
+          onChange={onChange}
+          onBlur={calculate}
+        />
+        <CountInput
+          placeholder="00"
+          name="seconds"
+          label="Sekunder"
+          onIncrement={() => handleIncrement("seconds")}
+          onDecrement={() => handleDecrement("seconds")}
+          value={state.seconds}
+          onChange={onChange}
+          onBlur={calculate}
+        />
+      </CountInputLayout>
 
       <Label>
         Distanse (km)
@@ -235,7 +230,7 @@ export const DistanceToPace = () => {
               placeholder="Velg distanse"
               name="distance"
               value={state.distance}
-              onChange={onSelectChange}
+              onChange={onChange}
               onBlur={doSelectCalculations}
               options={distanceOptions}
             />
@@ -245,11 +240,11 @@ export const DistanceToPace = () => {
 
       <ResultsContainer>
         <ResultItem>
-          <ResultLabel>Pace per kilometer:</ResultLabel>
+          <ResultLabel>Minutter pr kilometer:</ResultLabel>
           <ResultValue>{results.pacePerKm}</ResultValue>
         </ResultItem>
         <ResultItem>
-          <ResultLabel>Kilometer per time:</ResultLabel>
+          <ResultLabel>Kilometer i timen:</ResultLabel>
           <ResultValue>{results.kmPerHour} km/t</ResultValue>
         </ResultItem>
       </ResultsContainer>
