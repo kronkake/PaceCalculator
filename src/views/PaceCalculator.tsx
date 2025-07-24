@@ -11,6 +11,7 @@ const Wrap = styled.div`
   flex-direction: column;
   gap: 7.5px;
   width: 100%;
+  max-width: 600px;
 `;
 
 export const PaceCalculator = () => {

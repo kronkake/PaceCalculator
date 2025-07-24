@@ -1,5 +1,4 @@
 import React, { ChangeEvent, FocusEvent, useEffect, useState } from "react";
-import { TextInput } from "../../components/TextInput";
 import { Select } from "../../components/Select";
 import styled from "styled-components";
 import { formatTime, unitFormater } from "../../utils/paceFormats";
@@ -134,6 +133,13 @@ export const DistanceToPace = () => {
   };
 
   useEffect(() => {
+    if ((!state.hours || !state.minutes || !state.seconds) && !state.distance) {
+      setResults({
+        pacePerKm: "",
+        kmPerHour: "",
+      });
+      return;
+    }
     const requiredSpeedKmPerHour = calculateRequiredSpeed(
       parseFloat(state.distance ?? 0),
       {
@@ -185,17 +191,17 @@ export const DistanceToPace = () => {
       </CountInputLayout>
 
       <Label>
-        Distanse (km)
         <InputGroup>
           <InputWrapper>
-            <TextInput
+            <CountInput
               placeholder="42.195"
-              name="distance"
+              label="Distanse (km)"
+              onIncrement={() => handleIncrement("distance")}
+              onDecrement={() => handleDecrement("distance")}
               value={state.distance}
               onChange={onChange}
               onBlur={calculate}
-              type="number"
-              step="1"
+              name="distance"
             />
           </InputWrapper>
           <OrText>eller</OrText>
@@ -203,7 +209,6 @@ export const DistanceToPace = () => {
             <Select
               placeholder="Velg distanse"
               name="distance"
-              value={state.distance}
               onChange={onChange}
               onBlur={doSelectCalculations}
               options={distanceOptions}
@@ -217,7 +222,10 @@ export const DistanceToPace = () => {
           Minutter pr kilometer: {results.pacePerKm}
         </DistanceListItem>
         <DistanceListItem>
-          Kilometer i timen: {results.kmPerHour} km/t
+          Kilometer i timen:{" "}
+          {results.kmPerHour && Number(results.kmPerHour) > 0
+            ? `${results.kmPerHour} km/t`
+            : ""}
         </DistanceListItem>
       </DistanceList>
     </Wrap>
