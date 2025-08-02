@@ -75,13 +75,6 @@ export const PaceToDistance = () => {
     });
   };
 
-  const updateStateValue = (fieldName: PaceCalcUnits, newValue: string) => {
-    const formattedValue = unitFormater[fieldName](newValue);
-    const newState = calculateState[fieldName](formattedValue);
-
-    setState((prevState) => ({ ...prevState, ...newState }));
-  };
-
   const doCalculations = (e: FocusEvent<HTMLInputElement>) => {
     const name = e.target.name as keyof typeof initialState;
     const currentValue = state[name];
@@ -89,19 +82,40 @@ export const PaceToDistance = () => {
 
     // Only trigger calculations if the value actually changed
     if (currentValue !== newValue) {
-      updateStateValue(name, newValue);
+      setState((prevState) => ({
+        ...prevState,
+        ...getFormattedAndCalculatedState(name, newValue),
+      }));
     }
   };
 
-  const handleIncrement = (fieldName: PaceCalcUnits) => {
-    const newValue = Number(state[fieldName] || "0") + 1;
+  const getFormattedAndCalculatedState = (
+    fieldName: PaceCalcUnits,
+    batchedValue: string
+  ) => {
+    const formattedValue = unitFormater[fieldName](batchedValue);
+    const newState = calculateState[fieldName](formattedValue);
+    return newState;
+  };
 
-    updateStateValue(fieldName, newValue.toString());
+  const handleIncrement = (fieldName: PaceCalcUnits) => {
+    setState((prevState) => {
+      const updatedValue = String(Number(prevState[fieldName] || "0") + 1);
+      return {
+        ...prevState,
+        ...getFormattedAndCalculatedState(fieldName, updatedValue),
+      };
+    });
   };
 
   const handleDecrement = (fieldName: PaceCalcUnits) => {
-    const newValue = Number(state[fieldName] || "0") - 1;
-    updateStateValue(fieldName, newValue.toString());
+    setState((prevState) => {
+      const updatedValue = String(Number(prevState[fieldName] || "0") - 1);
+      return {
+        ...prevState,
+        ...getFormattedAndCalculatedState(fieldName, updatedValue),
+      };
+    });
   };
 
   useEffect(() => {

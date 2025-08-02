@@ -94,6 +94,15 @@ export const DistanceToPace = () => {
     setState((prevState) => ({ ...prevState, ...newState }));
   };
 
+  const getFormattedAndCalculatedState = (
+    fieldName: DistanceToPaceUnits,
+    batchedValue: string
+  ) => {
+    const formattedValue = unitFormater[fieldName](batchedValue);
+    const newState = calculateState[fieldName](formattedValue);
+    return newState;
+  };
+
   const onChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const targetName = e.target.name as keyof typeof initialState;
 
@@ -110,7 +119,10 @@ export const DistanceToPace = () => {
 
     // Only trigger calculations if the value actually changed
     if (currentValue !== newValue) {
-      updateStateValue(name, newValue);
+      setState((prevState) => ({
+        ...prevState,
+        ...getFormattedAndCalculatedState(name, newValue),
+      }));
     }
   };
 
@@ -123,13 +135,25 @@ export const DistanceToPace = () => {
   };
 
   const handleIncrement = (fieldName: DistanceToPaceUnits) => {
-    const newValue = Number(state[fieldName] || "0") + 1;
-    updateStateValue(fieldName, newValue.toString());
+    setState((prevState) => {
+      const updatedValue = String(Number(prevState[fieldName] || "0") + 1);
+      return {
+        ...prevState,
+        ...getFormattedAndCalculatedState(fieldName, updatedValue),
+      };
+    });
   };
 
   const handleDecrement = (fieldName: DistanceToPaceUnits) => {
-    const newValue = Math.max(0, Number(state[fieldName] || "0") - 1);
-    updateStateValue(fieldName, newValue.toString());
+    setState((prevState) => {
+      const updatedValue = String(
+        Math.max(0, Number(prevState[fieldName] || "0") - 1)
+      );
+      return {
+        ...prevState,
+        ...getFormattedAndCalculatedState(fieldName, updatedValue),
+      };
+    });
   };
 
   useEffect(() => {
