@@ -101,6 +101,7 @@ export const CountInput = ({
 
       const continuousAction = () => {
         if (!isHoldingRef.current) return;
+
         action();
 
         // Speed up the interval
@@ -113,6 +114,26 @@ export const CountInput = ({
     }, initialDelayMS); // Initial delay before continuous action starts
   };
 
+  const onMouseDown = (action?: () => void) => {
+    if ("ontouchstart" in window) {
+      return () => {};
+    }
+    return startContinuousAction(action);
+  };
+
+  const touchStartHandler = (
+    e: React.TouchEvent<HTMLButtonElement>,
+    action?: () => void
+  ) => {
+    e.preventDefault();
+    return startContinuousAction(action);
+  };
+
+  const touchEndHandler = (e: React.TouchEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    clearTimers();
+  };
+
   return (
     <Layout>
       <Label>{label}</Label>
@@ -120,11 +141,11 @@ export const CountInput = ({
       <CountButtonLayout>
         <CountButton
           type="button"
-          onMouseDown={() => startContinuousAction(onDecrement)}
+          onMouseDown={() => onMouseDown(onDecrement)}
           onMouseUp={clearTimers}
           onMouseLeave={clearTimers}
-          onTouchStart={() => startContinuousAction(onDecrement)}
-          onTouchEnd={clearTimers}
+          onTouchStart={(e) => touchStartHandler(e, onDecrement)}
+          onTouchEnd={touchEndHandler}
         >
           -
         </CountButton>
@@ -133,11 +154,11 @@ export const CountInput = ({
 
         <CountButton
           type="button"
-          onMouseDown={() => startContinuousAction(onIncrement)}
+          onMouseDown={() => onMouseDown(onIncrement)}
           onMouseUp={clearTimers}
           onMouseLeave={clearTimers}
-          onTouchStart={() => startContinuousAction(onIncrement)}
-          onTouchEnd={clearTimers}
+          onTouchStart={(e) => touchStartHandler(e, onIncrement)}
+          onTouchEnd={touchEndHandler}
         >
           +
         </CountButton>
