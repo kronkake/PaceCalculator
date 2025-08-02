@@ -84,16 +84,6 @@ export const DistanceToPace = () => {
     kmPerHour: "",
   });
 
-  const updateStateValue = (
-    fieldName: DistanceToPaceUnits,
-    newValue: string
-  ) => {
-    const formattedValue = unitFormater[fieldName](newValue);
-    const newState = calculateState[fieldName](formattedValue);
-
-    setState((prevState) => ({ ...prevState, ...newState }));
-  };
-
   const getFormattedAndCalculatedState = (
     fieldName: DistanceToPaceUnits,
     batchedValue: string

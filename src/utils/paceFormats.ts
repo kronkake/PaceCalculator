@@ -53,6 +53,9 @@ export const unitFormater: Record<PaceCalcUnits, (newValue: string) => string> =
   {
     km: (value: string) => {
       const km = Number(value);
+      if (km < 0) {
+        return "0.00";
+      }
       return km.toFixed(2);
     },
     seconds: (value: string) => {
