@@ -6,17 +6,31 @@ import { distances } from "../../units/units";
 import {
   convertKmToPace,
   convertPaceToKm,
+  convertPaceToSeconds,
   convertDistanceToTimeBasedOnPace,
 } from "../../utils/paceConversation";
 import { CountInput } from "../../components/CountInput";
 import { CountInputLayout } from "../../layout/CountLayout";
-import { DistanceList, DistanceListItem } from "../../components/ListItems";
+import {
+  Chevron,
+  DistanceList,
+  DistanceListItemButton,
+} from "../../components/ListItems";
+import { PredictionBase, PredictionDialog } from "./PredictionDialog";
 
 const Wrap = styled.div`
   display: flex;
   flex-direction: column;
   gap: 12px;
   width: 100%;
+  min-height: 0;
+`;
+
+// The main distance list gives way before the inputs do: it keeps room for
+// a couple of rows and scrolls internally on short viewports.
+const ScrollableDistanceList = styled(DistanceList)`
+  overflow-y: auto;
+  min-height: 7.5em;
 `;
 
 interface formattedDistances {
@@ -59,6 +73,10 @@ export const PaceToDistance = () => {
   const [formattedTimes, setFormattedTimes] = useState<formattedDistances[]>(
     [],
   );
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [predictionBase, setPredictionBase] = useState<PredictionBase | null>(
+    null,
+  );
 
   // While typing, derive the other fields from the raw value; formatting the
   // field the user is still editing would fight their input.
@@ -99,6 +117,21 @@ export const PaceToDistance = () => {
   const handleIncrement = (fieldName: PaceCalcUnits) => stepField(fieldName, 1);
   const handleDecrement = (fieldName: PaceCalcUnits) =>
     stepField(fieldName, -1);
+
+  const openPredictions = (distance: formattedDistances) => {
+    const paceSeconds = convertPaceToSeconds({
+      minutes: state.minutes,
+      seconds: state.seconds,
+    });
+    if (paceSeconds <= 0) return;
+
+    setPredictionBase({
+      km: distance.km,
+      label: distance.label,
+      seconds: paceSeconds * distance.km,
+    });
+    setDialogOpen(true);
+  };
 
   useEffect(() => {
     setFormattedTimes(
@@ -156,13 +189,28 @@ export const PaceToDistance = () => {
           onDecrement={() => handleDecrement("seconds")}
         />
       </CountInputLayout>
-      <DistanceList>
-        {formattedTimes.map(({ label, formattedTime }) => (
-          <DistanceListItem key={`${label}-${formattedTime}`}>
-            {label}: {formattedTime}
-          </DistanceListItem>
+      <ScrollableDistanceList>
+        {formattedTimes.map((distance) => (
+          <li key={distance.label}>
+            <DistanceListItemButton
+              type="button"
+              disabled={!distance.formattedTime}
+              onClick={() => openPredictions(distance)}
+            >
+              <span>
+                {distance.label}: {distance.formattedTime}
+              </span>
+              {distance.formattedTime && <Chevron aria-hidden="true">›</Chevron>}
+            </DistanceListItemButton>
+          </li>
         ))}
-      </DistanceList>
+      </ScrollableDistanceList>
+
+      <PredictionDialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        base={predictionBase}
+      />
     </Wrap>
   );
 };

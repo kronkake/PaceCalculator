@@ -6,11 +6,20 @@ import { MoonIcon } from "./icons/Moon";
 import { SunIcon } from "./icons/Sun";
 
 const Main = styled.main`
-  min-height: 100vh;
+  /* Lock the app to the visible viewport; overflow scrolls inside the
+     card instead of the page. dvh tracks iOS Safari's collapsing bars. */
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 0 16px 48px;
+  padding: 0 16px 12px;
+
+  /* Edge to edge on small screens; the header keeps its own gutter. */
+  @media (max-width: 560px) {
+    padding: 0;
+  }
 `;
 
 const Header = styled.header`
@@ -20,6 +29,10 @@ const Header = styled.header`
   align-items: center;
   justify-content: space-between;
   padding: 20px 0 12px;
+
+  @media (max-width: 560px) {
+    padding: 16px 16px 12px;
+  }
 `;
 
 const Title = styled.h1`

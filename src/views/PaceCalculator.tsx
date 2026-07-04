@@ -11,11 +11,17 @@ const Wrap = styled.div`
   gap: 7.5px;
   width: 100%;
   max-width: 600px;
+  /* Shrink below content height when the viewport is short. */
+  min-height: 0;
   background: var(--color-surface);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
   transition: background-color 0.25s ease;
+
+  @media (max-width: 560px) {
+    border-radius: 0;
+  }
 `;
 
 export const PaceCalculator = () => {

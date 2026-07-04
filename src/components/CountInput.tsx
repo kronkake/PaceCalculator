@@ -5,6 +5,8 @@ const Layout = styled.div`
   display: flex;
   flex-direction: column;
   width: 100%;
+  /* Let the control shrink below its content size in row layouts. */
+  min-width: 0;
 `;
 
 const CountButtonLayout = styled.div`
@@ -23,12 +25,20 @@ const CountButtonLayout = styled.div`
 `;
 
 const Input = styled.input`
-  width: 100%;
+  flex: 1 1 0;
+  /* Without this, the input's intrinsic width makes the row overflow and
+     the clipped pill hides the input on narrow screens. */
+  min-width: 0;
   display: block;
   text-align: center;
   border: none;
   font-size: 1.2rem;
   padding: 0.6em 0.25em;
+
+  @media (max-width: 560px) {
+    font-size: 1rem;
+    padding: 0.6em 0.15em;
+  }
   background: transparent;
   color: var(--color-text);
   outline: none;
@@ -55,10 +65,17 @@ const Label = styled.label`
 
 const CountButton = styled.button`
   display: block;
+  flex: 0 0 auto;
   border: none;
   padding: 0.5em 0.75em;
   min-width: 2.75em;
   font-size: 1.4rem;
+
+  @media (max-width: 560px) {
+    font-size: 1.1rem;
+    min-width: 2em;
+    padding: 0.5em 0.4em;
+  }
   font-weight: 500;
   line-height: 1;
   cursor: pointer;

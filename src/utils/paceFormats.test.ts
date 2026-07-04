@@ -100,13 +100,13 @@ describe("unitFormater", () => {
   it("clamps seconds between 0 and 59 and pads them", () => {
     expect(unitFormater.seconds("5")).toBe("05");
     expect(unitFormater.seconds("75")).toBe("59");
-    expect(unitFormater.seconds("-1")).toBe("0");
+    expect(unitFormater.seconds("-1")).toBe("00");
   });
 
   it("clamps minutes between 0 and 59 and pads them", () => {
     expect(unitFormater.minutes("7")).toBe("07");
     expect(unitFormater.minutes("60")).toBe("59");
-    expect(unitFormater.minutes("-1")).toBe("0");
+    expect(unitFormater.minutes("-1")).toBe("00");
   });
 
   it("clamps hours between 0 and 23 and pads them", () => {

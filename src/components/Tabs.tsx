@@ -5,6 +5,7 @@ const TabsContainer = styled.div`
   width: 100%;
   display: flex;
   flex-direction: column;
+  min-height: 0;
 `;
 
 const TabsList = styled.div`
@@ -57,7 +58,10 @@ const TabIndicator = styled.div<{ $width: number; $placement: number }>`
 `;
 
 const TabPanel = styled.div<{ $isActive: boolean }>`
-  display: ${(props) => (props.$isActive ? "block" : "none")};
+  display: ${(props) => (props.$isActive ? "flex" : "none")};
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
   padding: 16px 12px;
   background-color: var(--color-surface);
 `;
@@ -95,18 +99,30 @@ export const Tabs: React.FC<TabsProps> = ({
   };
 
   useLayoutEffect(() => {
-    const coordinates = tabsListRef?.current
-      ?.querySelector("[aria-selected='true']")
-      ?.getBoundingClientRect();
-    if (coordinates && tabsListRef.current) {
-      const wrapperOffsetLeft =
-        tabsListRef.current.getBoundingClientRect().left;
+    const measure = () => {
+      const coordinates = tabsListRef?.current
+        ?.querySelector("[aria-selected='true']")
+        ?.getBoundingClientRect();
+      if (coordinates && tabsListRef.current) {
+        const wrapperOffsetLeft =
+          tabsListRef.current.getBoundingClientRect().left;
 
-      setActiveTabPlacement({
-        width: coordinates.width,
-        placement: coordinates.left - wrapperOffsetLeft,
-      });
+        setActiveTabPlacement({
+          width: coordinates.width,
+          placement: coordinates.left - wrapperOffsetLeft,
+        });
+      }
+    };
+
+    measure();
+
+    // Re-measure when the list changes size — e.g. on window resize, or
+    // when the tabs sit in a dialog that only becomes visible after mount.
+    const observer = new ResizeObserver(measure);
+    if (tabsListRef.current) {
+      observer.observe(tabsListRef.current);
     }
+    return () => observer.disconnect();
   }, [activeTab, tabs]);
 
   return (

@@ -6,9 +6,16 @@ const StyledSelect = styled.select`
   display: block;
   text-align: center;
   border-radius: var(--radius-sm);
-  padding: 1em;
+  /* Mirrors the CountInput field: same font sizes and vertical padding
+     (minus the ~2px of intrinsic chrome selects add), so the select lines
+     up exactly with the other inputs. */
+  padding: calc(0.6em - 1px) 1em;
   border: 1px solid var(--color-border);
   font-size: 1.2rem;
+
+  @media (max-width: 560px) {
+    font-size: 1rem;
+  }
   background: var(--color-surface-alt);
   color: var(--color-text);
   transition: outline 0.25s ease, color 0.25s ease, border-color 0.25s ease;

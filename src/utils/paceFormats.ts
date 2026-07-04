@@ -50,6 +50,22 @@ export const formatPaceTime = (minutes: number, seconds: number) => {
     .padStart(2, "0")}`;
 };
 
+// Shared validator for the time units: empty/invalid input stays empty,
+// out-of-range values clamp to the unit's bounds, valid values get padded.
+const clampTimeUnit = (value: string, max: number) => {
+  const numeric = Number(value);
+  if (!value || Number.isNaN(numeric)) {
+    return "";
+  }
+  if (numeric > max) {
+    return String(max);
+  }
+  if (numeric < 0) {
+    return "00";
+  }
+  return value.padStart(2, "0");
+};
+
 export const unitFormater: Record<PaceCalcUnits, (newValue: string) => string> =
   {
     km: (value: string) => {
@@ -62,42 +78,9 @@ export const unitFormater: Record<PaceCalcUnits, (newValue: string) => string> =
       }
       return km.toFixed(2);
     },
-    seconds: (value: string) => {
-      const seconds = Number(value);
-      if (!value || Number.isNaN(seconds)) {
-        return "";
-      }
-      if (seconds > 59) {
-        return "59";
-      } else if (seconds < 0) {
-        return "0";
-      }
-      return value.padStart(2, "0");
-    },
-    minutes: (value: string) => {
-      const minutes = Number(value);
-      if (!value || Number.isNaN(minutes)) {
-        return "";
-      }
-      if (minutes > 59) {
-        return "59";
-      } else if (minutes < 0) {
-        return "0";
-      }
-      return value.padStart(2, "0");
-    },
-    hours: (value: string) => {
-      const hours = Number(value);
-      if (!value || Number.isNaN(hours)) {
-        return "";
-      }
-      if (hours > 23) {
-        return "23";
-      } else if (hours < 0) {
-        return "00";
-      }
-      return value.padStart(2, "0");
-    },
+    seconds: (value: string) => clampTimeUnit(value, 59),
+    minutes: (value: string) => clampTimeUnit(value, 59),
+    hours: (value: string) => clampTimeUnit(value, 23),
     distance: (value: string) => {
       return value;
     },

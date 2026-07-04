@@ -11,13 +11,20 @@ import {
   convertKmToPace,
   convertPaceToSeconds,
 } from "../../utils/paceConversation";
-import { DistanceList, DistanceListItem } from "../../components/ListItems";
+import {
+  Chevron,
+  DistanceList,
+  DistanceListItem,
+  DistanceListItemButton,
+} from "../../components/ListItems";
+import { PredictionBase, PredictionDialog } from "./PredictionDialog";
 
 const Wrap = styled.div`
   display: flex;
   flex-direction: column;
   gap: 12px;
   width: 100%;
+  min-height: 0;
 `;
 
 const Label = styled.div`
@@ -29,10 +36,17 @@ const InputGroup = styled.div`
   display: flex;
   gap: 8px;
   align-items: flex-end;
+
+  /* The select doesn't fit next to the input on narrow screens. */
+  @media (max-width: 560px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
 `;
 
 const InputWrapper = styled.div`
   flex: 1;
+  min-width: 0;
 `;
 
 const OrText = styled.span`
@@ -66,6 +80,10 @@ export const DistanceToPace = () => {
     pacePerKm: "",
     kmPerHour: "",
   });
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [predictionBase, setPredictionBase] = useState<PredictionBase | null>(
+    null,
+  );
 
   // The results effect below recalculates on every state change, so typing
   // is already live; blur only formats/clamps the field the user left.
@@ -104,6 +122,28 @@ export const DistanceToPace = () => {
 
   const handleDecrement = (fieldName: DistanceToPaceUnits) =>
     stepField(fieldName, -1);
+
+  const enteredDistanceKm = parseFloat(state.distance);
+  const enteredSeconds = convertPaceToSeconds({
+    hours: state.hours,
+    minutes: state.minutes,
+    seconds: state.seconds,
+  });
+  const canPredict = enteredDistanceKm > 0 && enteredSeconds > 0;
+
+  const openPredictions = () => {
+    if (!canPredict) return;
+
+    const label =
+      distances.find((distance) => distance.km === enteredDistanceKm)?.label ??
+      `${enteredDistanceKm} km`;
+    setPredictionBase({
+      km: enteredDistanceKm,
+      label,
+      seconds: enteredSeconds,
+    });
+    setDialogOpen(true);
+  };
 
   useEffect(() => {
     const distance = parseFloat(state.distance);
@@ -204,7 +244,23 @@ export const DistanceToPace = () => {
           Kilometer i timen:{" "}
           {results.kmPerHour ? `${results.kmPerHour} km/t` : ""}
         </DistanceListItem>
+        <li>
+          <DistanceListItemButton
+            type="button"
+            disabled={!canPredict}
+            onClick={openPredictions}
+          >
+            <span>Prognoser og mellomtider</span>
+            {canPredict && <Chevron aria-hidden="true">›</Chevron>}
+          </DistanceListItemButton>
+        </li>
       </DistanceList>
+
+      <PredictionDialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        base={predictionBase}
+      />
     </Wrap>
   );
 };
