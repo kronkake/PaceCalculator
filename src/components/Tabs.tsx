@@ -9,8 +9,8 @@ const TabsContainer = styled.div`
 
 const TabsList = styled.div`
   display: flex;
-  border-bottom: 1px solid #e0e0e0;
-  background-color: #fff;
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-surface);
   position: relative;
 `;
 
@@ -21,7 +21,8 @@ const TabButton = styled.button<{ $isActive: boolean }>`
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
-  color: ${(props) => (props.$isActive ? "#1976d2" : "#616161")};
+  color: ${(props) =>
+    props.$isActive ? "var(--color-primary)" : "var(--color-text-muted)"};
   text-transform: uppercase;
   letter-spacing: 0.5px;
   transition: all 0.3s ease;
@@ -33,18 +34,15 @@ const TabButton = styled.button<{ $isActive: boolean }>`
   outline: none;
 
   &:hover {
-    background-color: ${(props) =>
-      props.$isActive ? "rgba(25, 118, 210, 0.04)" : "rgba(0, 0, 0, 0.04)"};
+    background-color: var(--color-primary-softer);
   }
 
   &:focus {
-    background-color: ${(props) =>
-      props.$isActive ? "rgba(25, 118, 210, 0.08)" : "rgba(0, 0, 0, 0.08)"};
+    background-color: var(--color-primary-soft);
   }
 
   &:active {
-    background-color: ${(props) =>
-      props.$isActive ? "rgba(25, 118, 210, 0.12)" : "rgba(0, 0, 0, 0.12)"};
+    background-color: var(--color-primary-soft);
   }
 `;
 
@@ -52,7 +50,7 @@ const TabIndicator = styled.div<{ $width: number; $placement: number }>`
   position: absolute;
   bottom: 0;
   height: 2px;
-  background-color: #1976d2;
+  background-color: var(--color-primary);
   transition: all 0.3s ease;
   width: ${(props) => props.$width}px;
   transform: translateX(${(props) => props.$placement}px);
@@ -60,8 +58,8 @@ const TabIndicator = styled.div<{ $width: number; $placement: number }>`
 
 const TabPanel = styled.div<{ $isActive: boolean }>`
   display: ${(props) => (props.$isActive ? "block" : "none")};
-  padding: 12px;
-  background-color: #fff;
+  padding: 16px 12px;
+  background-color: var(--color-surface);
 `;
 
 export interface TabItem {
@@ -98,7 +96,7 @@ export const Tabs: React.FC<TabsProps> = ({
 
   useLayoutEffect(() => {
     const coordinates = tabsListRef?.current
-      ?.querySelector("[aria-selected='true'")
+      ?.querySelector("[aria-selected='true']")
       ?.getBoundingClientRect();
     if (coordinates && tabsListRef.current) {
       const wrapperOffsetLeft =

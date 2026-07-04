@@ -19,8 +19,8 @@ const Wrap = styled.div`
   width: 100%;
 `;
 
-const Label = styled.label`
-  color: #746d69;
+const Label = styled.div`
+  color: var(--color-text-muted);
   font-size: 1rem;
 `;
 
@@ -35,7 +35,7 @@ const InputWrapper = styled.div`
 `;
 
 const OrText = styled.span`
-  color: #746d69;
+  color: var(--color-text-muted);
   font-size: 0.9rem;
   padding: 0 8px;
   align-self: center;
@@ -86,7 +86,7 @@ export const DistanceToPace = () => {
 
   const getFormattedAndCalculatedState = (
     fieldName: DistanceToPaceUnits,
-    batchedValue: string
+    batchedValue: string,
   ) => {
     const formattedValue = unitFormater[fieldName](batchedValue);
     const newState = calculateState[fieldName](formattedValue);
@@ -137,7 +137,7 @@ export const DistanceToPace = () => {
   const handleDecrement = (fieldName: DistanceToPaceUnits) => {
     setState((prevState) => {
       const updatedValue = String(
-        Math.max(0, Number(prevState[fieldName] || "0") - 1)
+        Math.max(0, Number(prevState[fieldName] || "0") - 1),
       );
       return {
         ...prevState,
@@ -160,7 +160,7 @@ export const DistanceToPace = () => {
         hours: state.hours,
         minutes: state.minutes,
         seconds: state.seconds,
-      }
+      },
     );
     const time = convertKmToPace(requiredSpeedKmPerHour);
     setResults({

@@ -6,12 +6,16 @@ import { TabItem, Tabs } from "../components/Tabs";
 import { DistanceToPace } from "./PaceCalculator/DistanceToPace";
 
 const Wrap = styled.div`
-  padding-top: 0.5em;
   display: flex;
   flex-direction: column;
   gap: 7.5px;
   width: 100%;
   max-width: 600px;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: background-color 0.25s ease;
 `;
 
 export const PaceCalculator = () => {

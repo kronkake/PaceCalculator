@@ -11,7 +11,9 @@ export const DistanceList = styled.ol`
 
 export const DistanceListItem = styled.li`
   padding: 12px;
-  background-color: #f5f5f5;
-  border-radius: 5px;
-  border-left: 4px solid #6200ee;
+  background-color: var(--color-surface-alt);
+  color: var(--color-text);
+  border-radius: var(--radius-sm);
+  border-left: 4px solid var(--color-primary);
+  transition: background-color 0.25s ease;
 `;

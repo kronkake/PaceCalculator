@@ -1,4 +1,4 @@
-import React, { InputHTMLAttributes, useCallback, useRef } from "react";
+import React, { InputHTMLAttributes, useEffect, useRef } from "react";
 import styled from "styled-components";
 
 const Layout = styled.div`
@@ -10,12 +10,15 @@ const Layout = styled.div`
 const CountButtonLayout = styled.div`
   display: flex;
   align-items: stretch;
-  border-radius: 1rem;
+  border-radius: var(--radius-sm);
   overflow: hidden;
-  transition: outline 0.25s ease;
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  transition: outline 0.25s ease, background-color 0.25s ease;
   outline: 2px solid transparent;
+
   &:focus-within {
-    outline: 2px solid #6200ee;
+    outline: 2px solid var(--color-focus-ring);
   }
 `;
 
@@ -23,12 +26,18 @@ const Input = styled.input`
   width: 100%;
   display: block;
   text-align: center;
-  border: 1px solid transparent;
+  border: none;
   font-size: 1.2rem;
-  background: #e8e9eb;
-  transition: outline 0.25s ease, color 0.25s ease;
-  outline: 2px solid transparent;
+  padding: 0.6em 0.25em;
+  background: transparent;
+  color: var(--color-text);
+  outline: none;
   appearance: textfield;
+
+  &::placeholder {
+    color: var(--color-text-muted);
+    opacity: 0.6;
+  }
 
   &::-webkit-outer-spin-button,
   &::-webkit-inner-spin-button {
@@ -40,18 +49,34 @@ const Input = styled.input`
 const Label = styled.label`
   display: block;
   margin-bottom: 0.5em;
-  font-size: 1rem;
-  color: #333;
+  font-size: 0.95rem;
+  color: var(--color-text-muted);
 `;
 
 const CountButton = styled.button`
   display: block;
   border: none;
-  padding: 0.5em 0.5em;
-  font-size: 1.6rem;
+  padding: 0.5em 0.75em;
+  min-width: 2.75em;
+  font-size: 1.4rem;
   font-weight: 500;
+  line-height: 1;
   cursor: pointer;
-  background: #e8e9eb;
+  background: transparent;
+  color: var(--color-text);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background: var(--color-surface-alt-hover);
+  }
+
+  &:active,
+  &[data-pressed] {
+    background: var(--color-surface-alt-active);
+  }
 `;
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
@@ -60,78 +85,83 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   onDecrement?: () => void;
 }
 
+// Hold-to-repeat tuning: the action fires once on press, then after the
+// initial delay it repeats, accelerating towards the minimum interval.
+const HOLD_START_DELAY_MS = 350;
+const HOLD_START_INTERVAL_MS = 140;
+const HOLD_MIN_INTERVAL_MS = 40;
+const HOLD_ACCELERATION = 0.88;
+
+type Direction = "increment" | "decrement";
+
 export const CountInput = ({
   label,
   onIncrement,
   onDecrement,
   ...props
 }: InputProps) => {
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const isHoldingRef = useRef(false);
-  const initialDelayMS = 300;
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Read the handlers through a ref so a long hold keeps calling the latest
+  // callbacks instead of the ones captured when the press started.
+  const actionsRef = useRef({ increment: onIncrement, decrement: onDecrement });
+  actionsRef.current = { increment: onIncrement, decrement: onDecrement };
 
-  const clearTimers = () => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
+  const stopHold = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
     }
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-    isHoldingRef.current = false;
   };
 
-  const startContinuousAction = (action?: () => void) => {
-    if (!action) {
-      return;
-    }
-    // First click - immediate action
-    action();
-    isHoldingRef.current = true;
+  useEffect(() => stopHold, []);
 
-    // Start continuous action after initial delay
-    timeoutRef.current = setTimeout(() => {
-      if (!isHoldingRef.current) return;
+  const startHold = (direction: Direction) => {
+    stopHold();
+    actionsRef.current[direction]?.();
 
-      let currentDelay = 200; // Start with 200ms interval
-      const minDelay = 50; // Fastest interval (50ms)
-      const acceleration = 0.9; // Speed up factor
+    const repeat = (interval: number) => {
+      actionsRef.current[direction]?.();
+      timerRef.current = setTimeout(
+        () => repeat(Math.max(HOLD_MIN_INTERVAL_MS, interval * HOLD_ACCELERATION)),
+        interval
+      );
+    };
 
-      const continuousAction = () => {
-        if (!isHoldingRef.current) return;
-
-        action();
-
-        // Speed up the interval
-        currentDelay = Math.max(minDelay, currentDelay * acceleration);
-
-        intervalRef.current = setTimeout(continuousAction, currentDelay);
-      };
-
-      continuousAction();
-    }, initialDelayMS); // Initial delay before continuous action starts
+    timerRef.current = setTimeout(
+      () => repeat(HOLD_START_INTERVAL_MS),
+      HOLD_START_DELAY_MS
+    );
   };
 
-  const onMouseDown = (action?: () => void) => {
-    if ("ontouchstart" in window) {
-      return () => {};
-    }
-    return startContinuousAction(action);
-  };
-
-  const touchStartHandler = (
-    e: React.TouchEvent<HTMLButtonElement>,
-    action?: () => void
+  const handlePointerDown = (
+    e: React.PointerEvent<HTMLButtonElement>,
+    direction: Direction
   ) => {
+    if (!actionsRef.current[direction]) return;
+    // Keep the press from stealing focus (which would blur the input and
+    // trigger its recalculation mid-hold) and from starting a text selection.
     e.preventDefault();
-    return startContinuousAction(action);
+    // Capture the pointer so the hold survives the finger/cursor drifting
+    // off the button, and reliably ends on pointerup/cancel.
+    e.currentTarget.setPointerCapture(e.pointerId);
+    e.currentTarget.dataset.pressed = "";
+    startHold(direction);
   };
 
-  const touchEndHandler = (e: React.TouchEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    clearTimers();
+  const endHold = (e: React.PointerEvent<HTMLButtonElement>) => {
+    delete e.currentTarget.dataset.pressed;
+    stopHold();
+  };
+
+  const handleClick = (
+    e: React.MouseEvent<HTMLButtonElement>,
+    direction: Direction
+  ) => {
+    // Pointer presses already fired the action; detail === 0 means the
+    // button was activated with the keyboard.
+    if (e.detail === 0) {
+      actionsRef.current[direction]?.();
+    }
   };
 
   return (
@@ -141,24 +171,28 @@ export const CountInput = ({
       <CountButtonLayout>
         <CountButton
           type="button"
-          onMouseDown={() => onMouseDown(onDecrement)}
-          onMouseUp={clearTimers}
-          onMouseLeave={clearTimers}
-          onTouchStart={(e) => touchStartHandler(e, onDecrement)}
-          onTouchEnd={touchEndHandler}
+          aria-label={`Reduser ${label}`}
+          onPointerDown={(e) => handlePointerDown(e, "decrement")}
+          onPointerUp={endHold}
+          onPointerCancel={endHold}
+          onLostPointerCapture={endHold}
+          onClick={(e) => handleClick(e, "decrement")}
+          onContextMenu={(e) => e.preventDefault()}
         >
-          -
+          −
         </CountButton>
 
         <Input type="number" {...props} />
 
         <CountButton
           type="button"
-          onMouseDown={() => onMouseDown(onIncrement)}
-          onMouseUp={clearTimers}
-          onMouseLeave={clearTimers}
-          onTouchStart={(e) => touchStartHandler(e, onIncrement)}
-          onTouchEnd={touchEndHandler}
+          aria-label={`Øk ${label}`}
+          onPointerDown={(e) => handlePointerDown(e, "increment")}
+          onPointerUp={endHold}
+          onPointerCancel={endHold}
+          onLostPointerCapture={endHold}
+          onClick={(e) => handleClick(e, "increment")}
+          onContextMenu={(e) => e.preventDefault()}
         >
           +
         </CountButton>

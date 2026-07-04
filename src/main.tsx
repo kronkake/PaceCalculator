@@ -1,19 +1,11 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import { createGlobalStyle } from "styled-components";
 import App from "./App";
+import { GlobalStyle } from "./theme/GlobalStyle";
+import { applyTheme, getPreferredTheme } from "./theme/useTheme";
 
-const GlobalStyle = createGlobalStyle`
-      * {
-        box-sizing: border-box;
-      }
-      body {
-        font-family: sans-serif;
-        font-size: 1rem;
-        margin: 0;
-      }
-
-`;
+// Apply the theme before the first paint to avoid a light-mode flash.
+applyTheme(getPreferredTheme());
 
 const root = createRoot(document.getElementById("root")!);
 

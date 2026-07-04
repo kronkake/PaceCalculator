@@ -14,7 +14,7 @@ export const convertPaceToSeconds = (pace: PaceFormat) => {
 
 export const convertDistanceToTimeBasedOnPace = (
   pace: PaceFormat,
-  distance: number
+  distance: number,
 ) => {
   const secondsForOneKm = convertPaceToSeconds(pace);
   if (!secondsForOneKm || distance <= 0) {
@@ -24,7 +24,7 @@ export const convertDistanceToTimeBasedOnPace = (
 };
 
 export const convertPaceToKm = (
-  pace: PaceFormat = { hours: "0", minutes: "0", seconds: "0" }
+  pace: PaceFormat = { hours: "0", minutes: "0", seconds: "0" },
 ) => {
   const secondsForOneKm = convertPaceToSeconds(pace);
   return (secondsInOneHour / secondsForOneKm).toFixed(2) ?? "0.00";
@@ -40,7 +40,7 @@ export const convertKmToPace = (km: string) => {
 
 export const calculateRequiredSpeed = (
   distance: number,
-  time: PaceFormat = { hours: "0", minutes: "0", seconds: "0" }
+  time: PaceFormat = { hours: "0", minutes: "0", seconds: "0" },
 ) => {
   if (distance <= 0) {
     return "0.00";
@@ -55,4 +55,24 @@ export const calculateRequiredSpeed = (
   const kmPerHour = distance / hours;
 
   return kmPerHour.toFixed(2);
+};
+
+const kmToMiles = (km: number) => km * 0.621371;
+
+export const convertKmHToMph = (kmh: string) => {
+  if (!kmh) {
+    return "0.00";
+  }
+  return (parseFloat(kmh) * 0.621371).toFixed(2);
+};
+
+export const convertKmHToMilesPace = (kmh: string) => {
+  if (!kmh || parseFloat(kmh) <= 0) {
+    return { minutes: "00", seconds: "00", hours: "00" };
+  }
+
+  const mph = parseFloat(kmh) * 0.621371;
+  const secondsPerMile = secondsInOneHour / mph;
+
+  return fancyTimeFormat(secondsPerMile);
 };
