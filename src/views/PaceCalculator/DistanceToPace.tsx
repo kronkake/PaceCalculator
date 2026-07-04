@@ -9,6 +9,7 @@ import { DistanceToPaceUnits } from "../../types/types";
 import {
   calculateRequiredSpeed,
   convertKmToPace,
+  convertPaceToSeconds,
 } from "../../utils/paceConversation";
 import { DistanceList, DistanceListItem } from "../../components/ListItems";
 
@@ -60,108 +61,72 @@ export const DistanceToPace = () => {
     label: `${distance.label} (${distance.km}km)`,
   }));
 
-  const calculateState: Record<
-    string,
-    (newValue: string) => Partial<typeof initialState>
-  > = {
-    hours: (newValue: string) => {
-      return { hours: newValue };
-    },
-    minutes: (newValue: string) => {
-      return { minutes: newValue };
-    },
-    seconds: (newValue: string) => {
-      return { seconds: newValue };
-    },
-    distance: (newValue: string) => {
-      return { distance: newValue };
-    },
-  };
-
   const [state, setState] = useState(initialState);
   const [results, setResults] = useState<CalculatedResults>({
     pacePerKm: "",
     kmPerHour: "",
   });
 
-  const getFormattedAndCalculatedState = (
-    fieldName: DistanceToPaceUnits,
-    batchedValue: string,
-  ) => {
-    const formattedValue = unitFormater[fieldName](batchedValue);
-    const newState = calculateState[fieldName](formattedValue);
-    return newState;
-  };
-
+  // The results effect below recalculates on every state change, so typing
+  // is already live; blur only formats/clamps the field the user left.
   const onChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const targetName = e.target.name as keyof typeof initialState;
 
-    setState({
-      ...state,
+    setState((prevState) => ({
+      ...prevState,
       [targetName]: e.target.value,
-    });
+    }));
   };
 
   const calculate = (e: FocusEvent<HTMLInputElement>) => {
     const name = e.target.name as keyof typeof initialState;
-    const currentValue = state[name];
-    const newValue = e.target.value;
-
-    // Only trigger calculations if the value actually changed
-    if (currentValue !== newValue) {
-      setState((prevState) => ({
-        ...prevState,
-        ...getFormattedAndCalculatedState(name, newValue),
-      }));
-    }
+    setState((prevState) => ({
+      ...prevState,
+      [name]: unitFormater[name](prevState[name]),
+    }));
   };
 
-  const doSelectCalculations = (e: ChangeEvent<HTMLSelectElement>) => {
-    const name = e.target.name as keyof typeof initialState;
-    const formattedValue = unitFormater[name](e.target.value);
-
-    const newState = calculateState[name](formattedValue);
-    setState((prevState) => ({ ...prevState, ...newState }));
-  };
-
-  const handleIncrement = (fieldName: DistanceToPaceUnits) => {
+  const stepField = (fieldName: DistanceToPaceUnits, step: number) => {
     setState((prevState) => {
-      const updatedValue = String(Number(prevState[fieldName] || "0") + 1);
-      return {
-        ...prevState,
-        ...getFormattedAndCalculatedState(fieldName, updatedValue),
-      };
-    });
-  };
-
-  const handleDecrement = (fieldName: DistanceToPaceUnits) => {
-    setState((prevState) => {
-      const updatedValue = String(
-        Math.max(0, Number(prevState[fieldName] || "0") - 1),
+      const steppedValue = Math.max(
+        0,
+        Number(prevState[fieldName] || "0") + step,
       );
       return {
         ...prevState,
-        ...getFormattedAndCalculatedState(fieldName, updatedValue),
+        [fieldName]: unitFormater[fieldName](String(steppedValue)),
       };
     });
   };
 
+  const handleIncrement = (fieldName: DistanceToPaceUnits) =>
+    stepField(fieldName, 1);
+
+  const handleDecrement = (fieldName: DistanceToPaceUnits) =>
+    stepField(fieldName, -1);
+
   useEffect(() => {
-    if ((!state.hours || !state.minutes || !state.seconds) && !state.distance) {
+    const distance = parseFloat(state.distance);
+    const totalSeconds = convertPaceToSeconds({
+      hours: state.hours,
+      minutes: state.minutes,
+      seconds: state.seconds,
+    });
+
+    // A calculation needs both a distance and a time; anything else shows
+    // empty results instead of NaN/Infinity artifacts.
+    if (!distance || distance <= 0 || totalSeconds <= 0) {
       setResults({
         pacePerKm: "",
         kmPerHour: "",
       });
       return;
     }
-    const requiredSpeedKmPerHour = calculateRequiredSpeed(
-      parseFloat(state.distance ?? 0),
-      {
-        hours: state.hours,
-        minutes: state.minutes,
-        seconds: state.seconds,
-      },
-    );
+    const requiredSpeedKmPerHour = calculateRequiredSpeed(distance, {
+      hours: state.hours,
+      minutes: state.minutes,
+      seconds: state.seconds,
+    });
     const time = convertKmToPace(requiredSpeedKmPerHour);
     setResults({
       pacePerKm: formatTime(time),
@@ -223,8 +188,8 @@ export const DistanceToPace = () => {
             <Select
               placeholder="Velg distanse"
               name="distance"
+              value={state.distance}
               onChange={onChange}
-              onBlur={doSelectCalculations}
               options={distanceOptions}
             />
           </InputWrapper>
@@ -237,9 +202,7 @@ export const DistanceToPace = () => {
         </DistanceListItem>
         <DistanceListItem>
           Kilometer i timen:{" "}
-          {results.kmPerHour && Number(results.kmPerHour) > 0
-            ? `${results.kmPerHour} km/t`
-            : ""}
+          {results.kmPerHour ? `${results.kmPerHour} km/t` : ""}
         </DistanceListItem>
       </DistanceList>
     </Wrap>

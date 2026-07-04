@@ -27,15 +27,19 @@ export const convertPaceToKm = (
   pace: PaceFormat = { hours: "0", minutes: "0", seconds: "0" },
 ) => {
   const secondsForOneKm = convertPaceToSeconds(pace);
-  return (secondsInOneHour / secondsForOneKm).toFixed(2) ?? "0.00";
+  if (secondsForOneKm <= 0) {
+    return "";
+  }
+  return (secondsInOneHour / secondsForOneKm).toFixed(2);
 };
 
 export const convertKmToPace = (km: string) => {
-  if (!km) {
-    return { minutes: "00", seconds: "00", hours: "00" };
+  const kmNumber = parseFloat(km);
+  if (!kmNumber || kmNumber <= 0) {
+    return { minutes: "", seconds: "", hours: "" };
   }
 
-  return fancyTimeFormat(secondsInOneHour / parseFloat(km));
+  return fancyTimeFormat(secondsInOneHour / kmNumber);
 };
 
 export const calculateRequiredSpeed = (

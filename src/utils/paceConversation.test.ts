@@ -70,6 +70,11 @@ describe("convertPaceToKm", () => {
       "1.00"
     );
   });
+
+  it("returns an empty string for a zero pace instead of Infinity", () => {
+    expect(convertPaceToKm({})).toBe("");
+    expect(convertPaceToKm({ minutes: "0", seconds: "0" })).toBe("");
+  });
 });
 
 describe("convertKmToPace", () => {
@@ -86,12 +91,11 @@ describe("convertKmToPace", () => {
     });
   });
 
-  it("returns zero pace for an empty value", () => {
-    expect(convertKmToPace("")).toEqual({
-      hours: "00",
-      minutes: "00",
-      seconds: "00",
-    });
+  it("returns an empty pace for empty or non-positive values", () => {
+    const emptyPace = { hours: "", minutes: "", seconds: "" };
+    expect(convertKmToPace("")).toEqual(emptyPace);
+    expect(convertKmToPace("0")).toEqual(emptyPace);
+    expect(convertKmToPace("-4")).toEqual(emptyPace);
   });
 });
 

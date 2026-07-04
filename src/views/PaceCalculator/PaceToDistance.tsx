@@ -32,91 +32,73 @@ export const PaceToDistance = () => {
     km: "",
   };
 
+  // Each entry returns the edited field plus the fields derived from it, so
+  // every input path (typing, blur, steppers) keeps the others in sync.
   const calculateState: Record<
-    string,
-    (newValue: string) => Partial<typeof initialState>
+    PaceCalcUnits,
+    (
+      newValue: string,
+      current: typeof initialState,
+    ) => Partial<typeof initialState>
   > = {
-    km: (newValue: string) => {
-      const pace = convertKmToPace(newValue);
-      const { minutes, seconds } = pace;
-      return { km: unitFormater.km(newValue), minutes, seconds };
+    km: (newValue) => {
+      const { minutes, seconds } = convertKmToPace(newValue);
+      return { km: newValue, minutes, seconds };
     },
-    minutes: (newValue: string) => {
-      return {
-        minutes: newValue,
-        km: convertPaceToKm({
-          minutes: newValue,
-          seconds: state.seconds,
-        }),
-      };
-    },
-    seconds: (newValue: string) => {
-      return {
-        seconds: newValue,
-        km: convertPaceToKm({
-          minutes: state.minutes,
-          seconds: newValue,
-        }),
-      };
-    },
+    minutes: (newValue, current) => ({
+      minutes: newValue,
+      km: convertPaceToKm({ minutes: newValue, seconds: current.seconds }),
+    }),
+    seconds: (newValue, current) => ({
+      seconds: newValue,
+      km: convertPaceToKm({ minutes: current.minutes, seconds: newValue }),
+    }),
   };
 
   const [state, setState] = useState(initialState);
   const [formattedTimes, setFormattedTimes] = useState<formattedDistances[]>(
-    []
+    [],
   );
 
+  // While typing, derive the other fields from the raw value; formatting the
+  // field the user is still editing would fight their input.
   const onChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const targetName = e.target.name as keyof typeof initialState;
-
-    setState({
-      ...state,
-      [targetName]: e.target.value,
-    });
+    const name = e.target.name as PaceCalcUnits;
+    setState((prevState) => ({
+      ...prevState,
+      ...calculateState[name](e.target.value, prevState),
+    }));
   };
 
+  // On blur the edited field gets formatted/clamped, and the derived fields
+  // are recalculated from the clamped value.
   const doCalculations = (e: FocusEvent<HTMLInputElement>) => {
-    const name = e.target.name as keyof typeof initialState;
-    const currentValue = state[name];
-    const newValue = e.target.value;
-
-    // Only trigger calculations if the value actually changed
-    if (currentValue !== newValue) {
-      setState((prevState) => ({
-        ...prevState,
-        ...getFormattedAndCalculatedState(name, newValue),
-      }));
-    }
+    const name = e.target.name as PaceCalcUnits;
+    setState((prevState) => ({
+      ...prevState,
+      ...calculateState[name](unitFormater[name](prevState[name]), prevState),
+    }));
   };
 
-  const getFormattedAndCalculatedState = (
-    fieldName: PaceCalcUnits,
-    batchedValue: string
-  ) => {
-    const formattedValue = unitFormater[fieldName](batchedValue);
-    const newState = calculateState[fieldName](formattedValue);
-    return newState;
-  };
-
-  const handleIncrement = (fieldName: PaceCalcUnits) => {
+  const stepField = (fieldName: PaceCalcUnits, step: number) => {
     setState((prevState) => {
-      const updatedValue = String(Number(prevState[fieldName] || "0") + 1);
+      const steppedValue = Math.max(
+        0,
+        Number(prevState[fieldName] || "0") + step,
+      );
       return {
         ...prevState,
-        ...getFormattedAndCalculatedState(fieldName, updatedValue),
+        ...calculateState[fieldName](
+          unitFormater[fieldName](String(steppedValue)),
+          prevState,
+        ),
       };
     });
   };
 
-  const handleDecrement = (fieldName: PaceCalcUnits) => {
-    setState((prevState) => {
-      const updatedValue = String(Number(prevState[fieldName] || "0") - 1);
-      return {
-        ...prevState,
-        ...getFormattedAndCalculatedState(fieldName, updatedValue),
-      };
-    });
-  };
+  const handleIncrement = (fieldName: PaceCalcUnits) => stepField(fieldName, 1);
+  const handleDecrement = (fieldName: PaceCalcUnits) =>
+    stepField(fieldName, -1);
 
   useEffect(() => {
     setFormattedTimes(
@@ -126,13 +108,13 @@ export const PaceToDistance = () => {
             minutes: state.minutes,
             seconds: state.seconds,
           },
-          distance.km
+          distance.km,
         );
         return {
           ...distance,
           formattedTime: formatTime(time) || "",
         };
-      })
+      }),
     );
   }, [state.minutes, state.seconds]);
 

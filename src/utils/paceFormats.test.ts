@@ -67,6 +67,12 @@ describe("formatTime", () => {
       "01:05:30"
     );
   });
+
+  it("keeps zero minutes when hours are present", () => {
+    expect(formatTime({ hours: "01", minutes: "00", seconds: "30" })).toBe(
+      "01:00:30"
+    );
+  });
 });
 
 describe("formatPaceTime", () => {
@@ -111,5 +117,12 @@ describe("unitFormater", () => {
 
   it("passes distance through unchanged", () => {
     expect(unitFormater.distance("42.195")).toBe("42.195");
+  });
+
+  it("keeps empty values empty instead of formatting them to zero", () => {
+    expect(unitFormater.km("")).toBe("");
+    expect(unitFormater.seconds("")).toBe("");
+    expect(unitFormater.minutes("")).toBe("");
+    expect(unitFormater.hours("")).toBe("");
   });
 });

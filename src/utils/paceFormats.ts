@@ -16,21 +16,22 @@ export const fancyTimeFormat = (duration: number) => {
 
 export const joinStrings = (
   strings: Array<string | undefined>,
-  delimiter: string
+  delimiter: string,
 ) => {
   return strings.filter(Boolean).join(delimiter);
 };
 
 export const formatTime = (paceFormat: PaceFormat) => {
   if (convertPaceToSeconds(paceFormat) === 0) return "";
-  return joinStrings(
-    [
-      paceFormat.hours === "00" ? undefined : paceFormat.hours,
-      paceFormat.minutes === "00" ? undefined : paceFormat.minutes,
-      paceFormat.seconds,
-    ],
-    ":"
-  );
+  const hours =
+    paceFormat.hours && paceFormat.hours !== "00"
+      ? paceFormat.hours
+      : undefined;
+  // Minutes can only be dropped when there are no hours, otherwise
+  // 01:00:30 would collapse into 01:30.
+  const minutes =
+    hours || paceFormat.minutes !== "00" ? paceFormat.minutes : undefined;
+  return joinStrings([hours, minutes, paceFormat.seconds], ":");
 };
 
 export const formatPaceTime = (minutes: number, seconds: number) => {
@@ -53,6 +54,9 @@ export const unitFormater: Record<PaceCalcUnits, (newValue: string) => string> =
   {
     km: (value: string) => {
       const km = Number(value);
+      if (!value || Number.isNaN(km)) {
+        return "";
+      }
       if (km < 0) {
         return "0.00";
       }
@@ -60,6 +64,9 @@ export const unitFormater: Record<PaceCalcUnits, (newValue: string) => string> =
     },
     seconds: (value: string) => {
       const seconds = Number(value);
+      if (!value || Number.isNaN(seconds)) {
+        return "";
+      }
       if (seconds > 59) {
         return "59";
       } else if (seconds < 0) {
@@ -69,6 +76,9 @@ export const unitFormater: Record<PaceCalcUnits, (newValue: string) => string> =
     },
     minutes: (value: string) => {
       const minutes = Number(value);
+      if (!value || Number.isNaN(minutes)) {
+        return "";
+      }
       if (minutes > 59) {
         return "59";
       } else if (minutes < 0) {
@@ -78,6 +88,9 @@ export const unitFormater: Record<PaceCalcUnits, (newValue: string) => string> =
     },
     hours: (value: string) => {
       const hours = Number(value);
+      if (!value || Number.isNaN(hours)) {
+        return "";
+      }
       if (hours > 23) {
         return "23";
       } else if (hours < 0) {
