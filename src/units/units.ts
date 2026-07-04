@@ -20,6 +20,10 @@ export const distances = [
     label: "3k",
   },
   {
+    km: 1.60934,
+    label: "1 mile",
+  },
+  {
     km: 1.5,
     label: "1500m",
   },
