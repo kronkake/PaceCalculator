@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  carryTimeOverflow,
   fancyTimeFormat,
   formatPaceTime,
   formatTime,
@@ -87,6 +88,71 @@ describe("formatPaceTime", () => {
   it("caps the result at 60:00", () => {
     expect(formatPaceTime(60, 0)).toBe("60:00");
     expect(formatPaceTime(59, 61)).toBe("60:00");
+  });
+});
+
+describe("carryTimeOverflow", () => {
+  it("carries excess seconds into minutes", () => {
+    expect(carryTimeOverflow({ minutes: "", seconds: "900" }, false)).toEqual({
+      minutes: "15",
+      seconds: "00",
+    });
+  });
+
+  it("adds the carry to existing minutes", () => {
+    expect(carryTimeOverflow({ minutes: "4", seconds: "90" }, false)).toEqual({
+      minutes: "05",
+      seconds: "30",
+    });
+  });
+
+  it("carries through minutes into hours when hours are enabled", () => {
+    expect(
+      carryTimeOverflow({ hours: "", minutes: "", seconds: "3661" }, true),
+    ).toEqual({ hours: "01", minutes: "01", seconds: "01" });
+  });
+
+  it("carries excess minutes into hours", () => {
+    expect(
+      carryTimeOverflow({ hours: "1", minutes: "90", seconds: "00" }, true),
+    ).toEqual({ hours: "02", minutes: "30", seconds: "00" });
+  });
+
+  it("clamps minutes at 59 when there are no hours to carry into", () => {
+    expect(carryTimeOverflow({ minutes: "90", seconds: "00" }, false)).toEqual({
+      minutes: "59",
+      seconds: "00",
+    });
+  });
+
+  it("clamps hours at 23", () => {
+    expect(
+      carryTimeOverflow({ hours: "30", minutes: "00", seconds: "00" }, true),
+    ).toEqual({ hours: "23", minutes: "00", seconds: "00" });
+  });
+
+  it("keeps untouched empty fields empty when nothing carries into them", () => {
+    expect(carryTimeOverflow({ minutes: "", seconds: "30" }, false)).toEqual({
+      minutes: "",
+      seconds: "30",
+    });
+    expect(
+      carryTimeOverflow({ hours: "", minutes: "05", seconds: "30" }, true),
+    ).toEqual({ hours: "", minutes: "05", seconds: "30" });
+  });
+
+  it("pads the values it returns", () => {
+    expect(carryTimeOverflow({ minutes: "4", seconds: "5" }, false)).toEqual({
+      minutes: "04",
+      seconds: "05",
+    });
+  });
+
+  it("treats negative values as zero", () => {
+    expect(carryTimeOverflow({ minutes: "-5", seconds: "30" }, false)).toEqual({
+      minutes: "00",
+      seconds: "30",
+    });
   });
 });
 

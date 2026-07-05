@@ -1,7 +1,11 @@
 import React, { ChangeEvent, FocusEvent, useEffect, useState } from "react";
 import { Select } from "../../components/Select";
 import styled from "styled-components";
-import { formatTime, unitFormater } from "../../utils/paceFormats";
+import {
+  carryTimeOverflow,
+  formatTime,
+  unitFormater,
+} from "../../utils/paceFormats";
 import { distances } from "../../units/units";
 import { CountInput } from "../../components/CountInput";
 import { CountInputLayout } from "../../layout/CountLayout";
@@ -12,11 +16,12 @@ import {
   convertPaceToSeconds,
 } from "../../utils/paceConversation";
 import {
-  Chevron,
   DistanceList,
   DistanceListItem,
-  DistanceListItemButton,
+  RowLabel,
+  RowValue,
 } from "../../components/ListItems";
+import { ChevronRightIcon } from "../../icons/ChevronRight";
 import { PredictionBase, PredictionDialog } from "./PredictionDialog";
 
 const Wrap = styled.div`
@@ -56,10 +61,69 @@ const OrText = styled.span`
   align-self: center;
 `;
 
+// Tonal call-to-action for opening the prediction dialog; unlike the result
+// rows above it, this should read as a button.
+const PredictButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 48px;
+  padding: 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease,
+    transform 0.1s ease;
+
+  & > svg {
+    flex: 0 0 auto;
+  }
+
+  &:disabled {
+    cursor: default;
+    background: var(--color-surface-alt);
+    color: var(--color-text-muted);
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-focus-ring);
+    outline-offset: 1px;
+  }
+`;
+
 interface CalculatedResults {
   pacePerKm: string;
   kmPerHour: string;
 }
+
+const timeUnits = ["hours", "minutes", "seconds"] as const;
+type TimeUnit = (typeof timeUnits)[number];
+
+// Entering a value in a unit implies the smaller units are "00"; larger
+// units stay empty until the user (or a carry) fills them.
+const fillSmallerUnits = (
+  name: TimeUnit,
+  current: Record<TimeUnit, string>,
+) => {
+  const filled: Partial<Record<TimeUnit, string>> = {};
+  for (const unit of timeUnits.slice(timeUnits.indexOf(name) + 1)) {
+    if (!current[unit]) {
+      filled[unit] = "00";
+    }
+  }
+  return filled;
+};
 
 export const DistanceToPace = () => {
   const initialState: Record<DistanceToPaceUnits, string> = {
@@ -86,34 +150,56 @@ export const DistanceToPace = () => {
   );
 
   // The results effect below recalculates on every state change, so typing
-  // is already live; blur only formats/clamps the field the user left.
+  // is already live; blur only normalizes the time fields.
   const onChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const targetName = e.target.name as keyof typeof initialState;
 
-    setState((prevState) => ({
-      ...prevState,
-      [targetName]: e.target.value,
-    }));
+    setState((prevState) => {
+      const next = { ...prevState, [targetName]: e.target.value };
+      if (targetName !== "distance" && e.target.value) {
+        return { ...next, ...fillSmallerUnits(targetName, next) };
+      }
+      return next;
+    });
   };
 
+  // Blur normalizes the whole time: overflow carries upward, so 90 minutes
+  // becomes 01:30:00 and 900 seconds becomes 15 minutes.
   const calculate = (e: FocusEvent<HTMLInputElement>) => {
     const name = e.target.name as keyof typeof initialState;
-    setState((prevState) => ({
-      ...prevState,
-      [name]: unitFormater[name](prevState[name]),
-    }));
+    setState((prevState) => {
+      if (name === "distance") {
+        return {
+          ...prevState,
+          distance: unitFormater.distance(prevState.distance),
+        };
+      }
+      return { ...prevState, ...carryTimeOverflow(prevState, true) };
+    });
   };
 
   const stepField = (fieldName: DistanceToPaceUnits, step: number) => {
     setState((prevState) => {
-      const steppedValue = Math.max(
-        0,
-        Number(prevState[fieldName] || "0") + step,
+      const steppedValue = String(
+        Math.max(0, Number(prevState[fieldName] || "0") + step),
       );
-      return {
+      if (fieldName === "distance") {
+        return {
+          ...prevState,
+          distance: unitFormater.distance(steppedValue),
+        };
+      }
+      const next = {
         ...prevState,
-        [fieldName]: unitFormater[fieldName](String(steppedValue)),
+        [fieldName]: steppedValue,
+        ...fillSmallerUnits(fieldName, {
+          ...prevState,
+          [fieldName]: steppedValue,
+        }),
       };
+      // Carrying lets a stepper roll over into the next unit instead of
+      // stopping at 59.
+      return { ...next, ...carryTimeOverflow(next, true) };
     });
   };
 
@@ -124,6 +210,18 @@ export const DistanceToPace = () => {
     stepField(fieldName, -1);
 
   const enteredDistanceKm = parseFloat(state.distance);
+
+  // The select only reflects the typed distance when it numerically matches
+  // a known race ("10", "10.0" and "10.00" all mean 10k). Any other value
+  // shows a "custom distance" placeholder instead of jumping around.
+  const matchedDistance = distances.find(
+    (distance) => distance.km === enteredDistanceKm,
+  );
+  const selectValue = matchedDistance ? matchedDistance.km.toString() : "";
+  const selectPlaceholder =
+    state.distance && !matchedDistance
+      ? "Egendefinert distanse"
+      : "Velg distanse";
   const enteredSeconds = convertPaceToSeconds({
     hours: state.hours,
     minutes: state.minutes,
@@ -226,9 +324,9 @@ export const DistanceToPace = () => {
           <OrText>eller</OrText>
           <InputWrapper>
             <Select
-              placeholder="Velg distanse"
+              placeholder={selectPlaceholder}
               name="distance"
-              value={state.distance}
+              value={selectValue}
               onChange={onChange}
               options={distanceOptions}
             />
@@ -238,23 +336,25 @@ export const DistanceToPace = () => {
 
       <DistanceList>
         <DistanceListItem>
-          Minutter pr kilometer: {results.pacePerKm}
+          <RowLabel>Minutter pr kilometer</RowLabel>
+          <RowValue>{results.pacePerKm}</RowValue>
         </DistanceListItem>
         <DistanceListItem>
-          Kilometer i timen:{" "}
-          {results.kmPerHour ? `${results.kmPerHour} km/t` : ""}
+          <RowLabel>Kilometer i timen</RowLabel>
+          <RowValue>
+            {results.kmPerHour ? `${results.kmPerHour} km/t` : ""}
+          </RowValue>
         </DistanceListItem>
-        <li>
-          <DistanceListItemButton
-            type="button"
-            disabled={!canPredict}
-            onClick={openPredictions}
-          >
-            <span>Prognoser og mellomtider</span>
-            {canPredict && <Chevron aria-hidden="true">›</Chevron>}
-          </DistanceListItemButton>
-        </li>
       </DistanceList>
+
+      <PredictButton
+        type="button"
+        disabled={!canPredict}
+        onClick={openPredictions}
+      >
+        Prognoser og mellomtider
+        <ChevronRightIcon size={16} aria-hidden="true" />
+      </PredictButton>
 
       <PredictionDialog
         open={dialogOpen}

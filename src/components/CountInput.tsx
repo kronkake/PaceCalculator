@@ -86,8 +86,10 @@ const CountButton = styled.button`
   -webkit-user-select: none;
   transition: background-color 0.15s ease;
 
-  &:hover {
-    background: var(--color-surface-alt-hover);
+  @media (hover: hover) {
+    &:hover {
+      background: var(--color-surface-alt-hover);
+    }
   }
 
   &:active,

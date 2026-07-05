@@ -2,7 +2,12 @@ import React, { useState } from "react";
 import styled from "styled-components";
 import { Dialog } from "../../components/Dialog";
 import { TabItem, Tabs } from "../../components/Tabs";
-import { DistanceList, DistanceListItem } from "../../components/ListItems";
+import {
+  DistanceList,
+  DistanceListItem,
+  RowLabel,
+  RowValue,
+} from "../../components/ListItems";
 import { distances } from "../../units/units";
 import { fancyTimeFormat, formatTime } from "../../utils/paceFormats";
 import { calculateVdot, predictTimeVdot } from "../../utils/vdot";
@@ -30,7 +35,8 @@ const SegmentedControl = styled.div`
 const SegmentButton = styled.button<{ $active: boolean }>`
   flex: 1;
   border: none;
-  padding: 8px;
+  padding: 10px 8px;
+  min-height: 40px;
   border-radius: 6px;
   font-family: inherit;
   font-size: 0.85rem;
@@ -48,19 +54,16 @@ const SegmentButton = styled.button<{ $active: boolean }>`
   }
 `;
 
-const Row = styled.span`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-`;
-
 const BaseBadge = styled.span`
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  white-space: nowrap;
   color: var(--color-primary);
+  background: var(--color-primary-soft);
+  border-radius: 999px;
+  padding: 3px 8px;
 `;
 
 export interface PredictionBase {
@@ -165,12 +168,11 @@ export const PredictionDialog = ({
                 key={prediction.label}
                 $highlighted={prediction.isBase}
               >
-                <Row>
-                  <span>
-                    {prediction.label}: {prediction.time}
-                  </span>
+                <RowLabel>
+                  {prediction.label}
                   {prediction.isBase && <BaseBadge>Utgangspunkt</BaseBadge>}
-                </Row>
+                </RowLabel>
+                <RowValue>{prediction.time}</RowValue>
               </DistanceListItem>
             ))}
           </DistanceList>
@@ -187,14 +189,12 @@ export const PredictionDialog = ({
           <DistanceList>
             {splits.map((split) => (
               <DistanceListItem key={split.km} $highlighted={split.isFinish}>
-                <Row>
-                  <span>
-                    {split.isFinish
-                      ? `Mål (${splitLabel(split.km)})`
-                      : splitLabel(split.km)}
-                  </span>
-                  <span>{formatSeconds(split.seconds)}</span>
-                </Row>
+                <RowLabel>
+                  {split.isFinish
+                    ? `Mål (${splitLabel(split.km)})`
+                    : splitLabel(split.km)}
+                </RowLabel>
+                <RowValue>{formatSeconds(split.seconds)}</RowValue>
               </DistanceListItem>
             ))}
           </DistanceList>

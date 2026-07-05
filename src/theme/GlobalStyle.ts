@@ -47,6 +47,11 @@ export const GlobalStyle = createGlobalStyle`
     box-sizing: border-box;
   }
 
+  html {
+    /* The ripple/flash on tap fights the components' own pressed states. */
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     font-size: 1rem;
@@ -54,5 +59,13 @@ export const GlobalStyle = createGlobalStyle`
     background: var(--color-bg);
     color: var(--color-text);
     transition: background-color 0.25s ease, color 0.25s ease;
+    /* No pull-to-refresh/rubber-banding behind the locked app viewport. */
+    overscroll-behavior-y: none;
+  }
+
+  button,
+  input,
+  select {
+    font-family: inherit;
   }
 `;

@@ -1,7 +1,11 @@
 import React, { ChangeEvent, FocusEvent, useEffect, useState } from "react";
 import styled from "styled-components";
 import { PaceToDistanceUnits as PaceCalcUnits } from "../../types/types";
-import { formatTime, unitFormater } from "../../utils/paceFormats";
+import {
+  carryTimeOverflow,
+  formatTime,
+  unitFormater,
+} from "../../utils/paceFormats";
 import { distances } from "../../units/units";
 import {
   convertKmToPace,
@@ -15,6 +19,8 @@ import {
   Chevron,
   DistanceList,
   DistanceListItemButton,
+  RowLabel,
+  RowValue,
 } from "../../components/ListItems";
 import { PredictionBase, PredictionDialog } from "./PredictionDialog";
 
@@ -59,10 +65,16 @@ export const PaceToDistance = () => {
       const { minutes, seconds } = convertKmToPace(newValue);
       return { km: newValue, minutes, seconds };
     },
-    minutes: (newValue, current) => ({
-      minutes: newValue,
-      km: convertPaceToKm({ minutes: newValue, seconds: current.seconds }),
-    }),
+    minutes: (newValue, current) => {
+      // Entering minutes implies whole minutes: an empty seconds field
+      // becomes "00" instead of staying blank.
+      const seconds = current.seconds || (newValue ? "00" : "");
+      return {
+        minutes: newValue,
+        seconds,
+        km: convertPaceToKm({ minutes: newValue, seconds }),
+      };
+    },
     seconds: (newValue, current) => ({
       seconds: newValue,
       km: convertPaceToKm({ minutes: current.minutes, seconds: newValue }),
@@ -88,29 +100,49 @@ export const PaceToDistance = () => {
     }));
   };
 
-  // On blur the edited field gets formatted/clamped, and the derived fields
-  // are recalculated from the clamped value.
+  // On blur the pace gets normalized — overflow carries upward (90 seconds
+  // becomes 01:30) — and the derived fields are recalculated from it.
   const doCalculations = (e: FocusEvent<HTMLInputElement>) => {
     const name = e.target.name as PaceCalcUnits;
-    setState((prevState) => ({
-      ...prevState,
-      ...calculateState[name](unitFormater[name](prevState[name]), prevState),
-    }));
+    setState((prevState) => {
+      if (name === "km") {
+        return {
+          ...prevState,
+          ...calculateState.km(unitFormater.km(prevState.km), prevState),
+        };
+      }
+      const carried = carryTimeOverflow(
+        { minutes: prevState.minutes, seconds: prevState.seconds },
+        false,
+      );
+      return { ...prevState, ...carried, km: convertPaceToKm(carried) };
+    });
   };
 
   const stepField = (fieldName: PaceCalcUnits, step: number) => {
     setState((prevState) => {
-      const steppedValue = Math.max(
-        0,
-        Number(prevState[fieldName] || "0") + step,
+      const steppedValue = String(
+        Math.max(0, Number(prevState[fieldName] || "0") + step),
       );
-      return {
-        ...prevState,
-        ...calculateState[fieldName](
-          unitFormater[fieldName](String(steppedValue)),
-          prevState,
-        ),
+      if (fieldName === "km") {
+        return {
+          ...prevState,
+          ...calculateState.km(unitFormater.km(steppedValue), prevState),
+        };
+      }
+      const pace = {
+        minutes: prevState.minutes,
+        seconds: prevState.seconds,
+        [fieldName]: steppedValue,
       };
+      // Same cascade as typing: stepping minutes fills an empty seconds.
+      if (fieldName === "minutes" && !pace.seconds) {
+        pace.seconds = "00";
+      }
+      // Carrying lets the seconds stepper roll over into the next minute
+      // instead of stopping at 59.
+      const carried = carryTimeOverflow(pace, false);
+      return { ...prevState, ...carried, km: convertPaceToKm(carried) };
     });
   };
 
@@ -181,7 +213,6 @@ export const PaceToDistance = () => {
           onBlur={doCalculations}
           placeholder="00"
           min="0"
-          max="59"
           name="seconds"
           label="Sekunder pr kilometer"
           value={state.seconds}
@@ -197,10 +228,13 @@ export const PaceToDistance = () => {
               disabled={!distance.formattedTime}
               onClick={() => openPredictions(distance)}
             >
-              <span>
-                {distance.label}: {distance.formattedTime}
-              </span>
-              {distance.formattedTime && <Chevron aria-hidden="true">›</Chevron>}
+              <RowLabel>{distance.label}</RowLabel>
+              {distance.formattedTime && (
+                <>
+                  <RowValue>{distance.formattedTime}</RowValue>
+                  <Chevron />
+                </>
+              )}
             </DistanceListItemButton>
           </li>
         ))}

@@ -14,7 +14,19 @@ const StyledDialog = styled.dialog`
   max-height: min(85vh, 720px);
   opacity: 0;
   transform: translateY(12px) scale(0.98);
-  transition: opacity 0.25s ease, transform 0.25s ease;
+  transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* On phones the dialog becomes a bottom sheet: full width, pinned to the
+     bottom edge, sliding up from below. */
+  @media (max-width: 560px) {
+    width: 100vw;
+    max-width: 100vw;
+    margin: auto 0 0;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    max-height: 85dvh;
+    opacity: 1;
+    transform: translateY(100%);
+  }
 
   /* Scoped to [open] so the UA's display: none for closed dialogs wins. */
   &[open] {
@@ -80,6 +92,12 @@ const CloseButton = styled.button`
 const Content = styled.div`
   padding: 16px 20px 20px;
   overflow-y: auto;
+  /* Don't let a scrolled list fling the page behind the sheet. */
+  overscroll-behavior: contain;
+
+  @media (max-width: 560px) {
+    padding: 16px 16px calc(20px + env(safe-area-inset-bottom));
+  }
 `;
 
 interface DialogProps {

@@ -34,11 +34,16 @@ const TabButton = styled.button<{ $isActive: boolean }>`
   justify-content: center;
   outline: none;
 
-  &:hover {
-    background-color: var(--color-primary-softer);
+  /* Hover only on devices that hover; on touch it would stick after a tap.
+     Same reason :focus-visible instead of :focus — a tap focuses the button
+     and would leave it permanently tinted. */
+  @media (hover: hover) {
+    &:hover {
+      background-color: var(--color-primary-softer);
+    }
   }
 
-  &:focus {
+  &:focus-visible {
     background-color: var(--color-primary-soft);
   }
 

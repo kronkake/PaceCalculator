@@ -50,6 +50,51 @@ export const formatPaceTime = (minutes: number, seconds: number) => {
     .padStart(2, "0")}`;
 };
 
+export interface TimeParts {
+  hours?: string;
+  minutes?: string;
+  seconds?: string;
+}
+
+// Roll overflow upward instead of clamping it away: 900 seconds becomes
+// 15 minutes / 00 seconds. A unit the user left empty stays empty unless
+// it receives a carry; the largest unit clamps to its bound since there
+// is nothing above it to carry into.
+export const carryTimeOverflow = (
+  parts: TimeParts,
+  withHours: boolean,
+): TimeParts => {
+  const toNonNegative = (value?: string) => {
+    const numeric = Number(value);
+    return Number.isNaN(numeric) ? 0 : Math.max(0, numeric);
+  };
+  const pad = (value: number) => String(value).padStart(2, "0");
+
+  let seconds = toNonNegative(parts.seconds);
+  let minutes = toNonNegative(parts.minutes);
+  let hours = toNonNegative(parts.hours);
+
+  minutes += Math.floor(seconds / 60);
+  seconds = seconds % 60;
+
+  if (withHours) {
+    hours += Math.floor(minutes / 60);
+    minutes = minutes % 60;
+    hours = Math.min(hours, 23);
+  } else {
+    minutes = Math.min(minutes, 59);
+  }
+
+  const result: TimeParts = {
+    minutes: parts.minutes || minutes > 0 ? pad(minutes) : "",
+    seconds: parts.seconds || seconds > 0 ? pad(seconds) : "",
+  };
+  if (withHours) {
+    result.hours = parts.hours || hours > 0 ? pad(hours) : "";
+  }
+  return result;
+};
+
 // Shared validator for the time units: empty/invalid input stays empty,
 // out-of-range values clamp to the unit's bounds, valid values get padded.
 const clampTimeUnit = (value: string, max: number) => {
