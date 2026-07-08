@@ -61,7 +61,27 @@ export const calculateRequiredSpeed = (
   return kmPerHour.toFixed(2);
 };
 
-const kmToMiles = (km: number) => km * 0.621371;
+export const KM_PER_MILE = 1.60934;
+
+export const convertKmToMiles = (km: number) => km / KM_PER_MILE;
+
+export const convertMilesToKm = (miles: number) => miles * KM_PER_MILE;
+
+export const convertMphToKmH = (mph: string) => {
+  const mphNumber = parseFloat(mph);
+  if (!mphNumber || mphNumber <= 0) {
+    return "";
+  }
+  return (mphNumber * KM_PER_MILE).toFixed(2);
+};
+
+export const convertMilesPaceToKmH = (pace: PaceFormat) => {
+  const secondsForOneMile = convertPaceToSeconds(pace);
+  if (secondsForOneMile <= 0) {
+    return "";
+  }
+  return ((secondsInOneHour / secondsForOneMile) * KM_PER_MILE).toFixed(2);
+};
 
 export const convertKmHToMph = (kmh: string) => {
   if (!kmh) {

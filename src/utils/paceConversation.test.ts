@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
+  KM_PER_MILE,
   calculateRequiredSpeed,
   convertDistanceToTimeBasedOnPace,
   convertKmHToMilesPace,
   convertKmHToMph,
+  convertKmToMiles,
   convertKmToPace,
+  convertMilesPaceToKmH,
+  convertMilesToKm,
+  convertMphToKmH,
   convertPaceToKm,
   convertPaceToSeconds,
 } from "./paceConversation";
@@ -154,5 +159,40 @@ describe("convertKmHToMilesPace", () => {
       minutes: "00",
       seconds: "00",
     });
+  });
+});
+
+describe("convertMphToKmH", () => {
+  it("converts mph to km/h", () => {
+    expect(convertMphToKmH("10")).toBe("16.09");
+    expect(convertMphToKmH("6.21")).toBe("9.99");
+  });
+
+  it("returns an empty string for empty or non-positive values", () => {
+    expect(convertMphToKmH("")).toBe("");
+    expect(convertMphToKmH("0")).toBe("");
+    expect(convertMphToKmH("-4")).toBe("");
+  });
+});
+
+describe("convertMilesPaceToKmH", () => {
+  it("converts a pace per mile to km/h", () => {
+    // 09:39 per mile is ~10 km/h (convertKmHToMilesPace("10") rounded to
+    // whole seconds, so the round trip lands one hundredth off).
+    expect(convertMilesPaceToKmH({ minutes: "9", seconds: "39" })).toBe(
+      "10.01"
+    );
+  });
+
+  it("returns an empty string for a zero pace", () => {
+    expect(convertMilesPaceToKmH({ minutes: "", seconds: "" })).toBe("");
+  });
+});
+
+describe("km/miles distance conversions", () => {
+  it("converts between km and miles", () => {
+    expect(convertKmToMiles(KM_PER_MILE)).toBe(1);
+    expect(convertMilesToKm(1)).toBe(KM_PER_MILE);
+    expect(convertKmToMiles(42.195)).toBeCloseTo(26.219, 3);
   });
 });

@@ -8,14 +8,18 @@ import {
   RowLabel,
   RowValue,
 } from "../../components/ListItems";
+import { SegmentedControl } from "../../components/SegmentedControl";
 import { distances } from "../../units/units";
+import { UnitMode } from "../../units/useUnitMode";
 import { fancyTimeFormat, formatTime } from "../../utils/paceFormats";
+import { convertKmToMiles } from "../../utils/paceConversation";
 import { calculateVdot, predictTimeVdot } from "../../utils/vdot";
 import {
   predictTimeCameron,
   predictTimeRiegel,
 } from "../../utils/racePredictions";
 import { calculateSplits } from "../../utils/splits";
+import { useTranslation } from "../../i18n/i18n";
 
 const Intro = styled.p`
   margin: 0 0 12px;
@@ -23,35 +27,8 @@ const Intro = styled.p`
   font-size: 0.95rem;
 `;
 
-const SegmentedControl = styled.div`
-  display: flex;
-  gap: 4px;
-  padding: 4px;
-  background: var(--color-surface-alt);
-  border-radius: var(--radius-sm);
+const ControlWrap = styled.div`
   margin-bottom: 12px;
-`;
-
-const SegmentButton = styled.button<{ $active: boolean }>`
-  flex: 1;
-  border: none;
-  padding: 10px 8px;
-  min-height: 40px;
-  border-radius: 6px;
-  font-family: inherit;
-  font-size: 0.85rem;
-  font-weight: 500;
-  cursor: pointer;
-  color: ${({ $active }) =>
-    $active ? "var(--color-primary)" : "var(--color-text-muted)"};
-  background: ${({ $active }) =>
-    $active ? "var(--color-surface)" : "transparent"};
-  box-shadow: ${({ $active }) => ($active ? "var(--shadow-sm)" : "none")};
-  transition: background-color 0.15s ease, color 0.15s ease;
-
-  &:focus-visible {
-    outline: 2px solid var(--color-focus-ring);
-  }
 `;
 
 const BaseBadge = styled.span`
@@ -93,21 +70,31 @@ const predictionFormulas: Record<
 const formatSeconds = (seconds: number) =>
   formatTime(fancyTimeFormat(Math.round(seconds)));
 
+type SplitUnit = "km" | "miles";
+
 interface PredictionDialogProps {
   open: boolean;
   onClose: () => void;
   /* Keep the last base while the dialog animates closed, so the content
      doesn't vanish mid-transition. */
   base: PredictionBase | null;
+  unitMode: UnitMode;
 }
 
+const formulaOptions = (
+  Object.keys(predictionFormulas) as PredictionFormula[]
+).map((id) => ({ value: id, label: predictionFormulas[id].label }));
+
 // Race predictions and even-pace split times for a base result, presented
-// as two tabs inside a modal dialog.
+// as tabs inside a modal dialog; in "both" mode the splits get one tab
+// per unit.
 export const PredictionDialog = ({
   open,
   onClose,
   base,
+  unitMode,
 }: PredictionDialogProps) => {
+  const { t, distanceLabel } = useTranslation();
   const [formula, setFormula] = useState<PredictionFormula>("vdot");
 
   if (!base) {
@@ -133,34 +120,69 @@ export const PredictionDialog = ({
     };
   });
 
-  const splits = calculateSplits(base.km, base.seconds);
+  const baseMiles = convertKmToMiles(base.km);
 
-  // Short races split on 200m, so label those points in meters.
-  const splitLabel = (km: number) =>
-    base.km < 2
-      ? `${Math.round(km * 1000)} m`
-      : `${parseFloat(km.toFixed(3))} km`;
+  // Splits for one unit: distance, labels and even-pace line all in that
+  // unit. Short races split on fractions, so those points get a finer
+  // label (meters) where one exists.
+  const splitsContent = (unit: SplitUnit) => {
+    const splits = calculateSplits(
+      unit === "km" ? base.km : baseMiles,
+      base.seconds,
+    );
+    const splitLabel = (value: number) =>
+      unit === "km"
+        ? base.km < 2
+          ? `${Math.round(value * 1000)} m`
+          : `${parseFloat(value.toFixed(3))} km`
+        : `${parseFloat(value.toFixed(2))} mi`;
+    const evenPace =
+      unit === "km"
+        ? `${formatSeconds(base.seconds / base.km)} ${t.perKm}`
+        : `${formatSeconds(base.seconds / baseMiles)} ${t.perMile}`;
+
+    return (
+      <>
+        <Intro>
+          {t.evenPace}: {evenPace}
+        </Intro>
+        <DistanceList>
+          {splits.map((split) => (
+            <DistanceListItem key={split.km} $highlighted={split.isFinish}>
+              <RowLabel>
+                {split.isFinish
+                  ? `${t.finish} (${splitLabel(split.km)})`
+                  : splitLabel(split.km)}
+              </RowLabel>
+              <RowValue>{formatSeconds(split.seconds)}</RowValue>
+            </DistanceListItem>
+          ))}
+        </DistanceList>
+      </>
+    );
+  };
+
+  const splitTabs: TabItem[] =
+    unitMode === "both"
+      ? [
+          { label: t.splitsKm, content: splitsContent("km") },
+          { label: t.splitsMiles, content: splitsContent("miles") },
+        ]
+      : [{ label: t.splits, content: splitsContent(unitMode) }];
 
   const tabs: TabItem[] = [
     {
-      label: "Prognoser",
+      label: t.predictions,
       content: (
         <>
-          <SegmentedControl role="group" aria-label="Velg formel">
-            {(Object.keys(predictionFormulas) as PredictionFormula[]).map(
-              (id) => (
-                <SegmentButton
-                  key={id}
-                  type="button"
-                  $active={formula === id}
-                  aria-pressed={formula === id}
-                  onClick={() => setFormula(id)}
-                >
-                  {predictionFormulas[id].label}
-                </SegmentButton>
-              ),
-            )}
-          </SegmentedControl>
+          <ControlWrap>
+            <SegmentedControl
+              ariaLabel={t.selectFormula}
+              options={formulaOptions}
+              value={formula}
+              onChange={setFormula}
+            />
+          </ControlWrap>
           {formula === "vdot" && <Intro>VDOT {vdot.toFixed(1)}</Intro>}
           <DistanceList>
             {predictions.map((prediction) => (
@@ -169,8 +191,8 @@ export const PredictionDialog = ({
                 $highlighted={prediction.isBase}
               >
                 <RowLabel>
-                  {prediction.label}
-                  {prediction.isBase && <BaseBadge>Utgangspunkt</BaseBadge>}
+                  {distanceLabel(prediction.label)}
+                  {prediction.isBase && <BaseBadge>{t.baseBadge}</BaseBadge>}
                 </RowLabel>
                 <RowValue>{prediction.time}</RowValue>
               </DistanceListItem>
@@ -179,35 +201,14 @@ export const PredictionDialog = ({
         </>
       ),
     },
-    {
-      label: "Mellomtider",
-      content: (
-        <>
-          <Intro>
-            Jevn fart: {formatSeconds(base.seconds / base.km)} pr km
-          </Intro>
-          <DistanceList>
-            {splits.map((split) => (
-              <DistanceListItem key={split.km} $highlighted={split.isFinish}>
-                <RowLabel>
-                  {split.isFinish
-                    ? `Mål (${splitLabel(split.km)})`
-                    : splitLabel(split.km)}
-                </RowLabel>
-                <RowValue>{formatSeconds(split.seconds)}</RowValue>
-              </DistanceListItem>
-            ))}
-          </DistanceList>
-        </>
-      ),
-    },
+    ...splitTabs,
   ];
 
   return (
     <Dialog
       open={open}
       onClose={onClose}
-      title={`${base.label} på ${formatSeconds(base.seconds)}`}
+      title={`${distanceLabel(base.label)} ${t.dialogTitleConnector} ${formatSeconds(base.seconds)}`}
     >
       <Tabs tabs={tabs} />
     </Dialog>

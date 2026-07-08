@@ -31,13 +31,34 @@ const StyledSelect = styled.select`
   }
 `;
 
+/* Wrapping label associates the text with the select without needing ids,
+   and mirrors the CountInput label styling so rows line up next to it. */
+const Layout = styled.label`
+  display: block;
+  width: 100%;
+  min-width: 0;
+`;
+
+const LabelText = styled.span`
+  display: block;
+  margin-bottom: 0.5em;
+  font-size: 0.95rem;
+  color: var(--color-text-muted);
+`;
+
 interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   options: Array<{ value: string; label: string }>;
   placeholder?: string;
+  label?: string;
 }
 
-export const Select: React.FC<SelectProps> = ({ options, placeholder, ...props }) => {
-  return (
+export const Select: React.FC<SelectProps> = ({
+  options,
+  placeholder,
+  label,
+  ...props
+}) => {
+  const select = (
     <StyledSelect {...props}>
       {placeholder && (
         <option value="" disabled>
@@ -50,5 +71,16 @@ export const Select: React.FC<SelectProps> = ({ options, placeholder, ...props }
         </option>
       ))}
     </StyledSelect>
+  );
+
+  if (!label) {
+    return select;
+  }
+
+  return (
+    <Layout>
+      <LabelText>{label}</LabelText>
+      {select}
+    </Layout>
   );
 };

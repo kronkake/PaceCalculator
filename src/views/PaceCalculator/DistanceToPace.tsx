@@ -1,20 +1,21 @@
 import React, { ChangeEvent, FocusEvent, useEffect, useState } from "react";
 import { Select } from "../../components/Select";
 import styled from "styled-components";
-import {
-  carryTimeOverflow,
-  formatTime,
-  unitFormater,
-} from "../../utils/paceFormats";
+import { carryTimeOverflow, formatTime } from "../../utils/paceFormats";
 import { distances } from "../../units/units";
 import { CountInput } from "../../components/CountInput";
 import { CountInputLayout } from "../../layout/CountLayout";
 import { DistanceToPaceUnits } from "../../types/types";
 import {
   calculateRequiredSpeed,
+  convertKmHToMilesPace,
+  convertKmHToMph,
+  convertKmToMiles,
   convertKmToPace,
+  convertMilesToKm,
   convertPaceToSeconds,
 } from "../../utils/paceConversation";
+import { UnitMode } from "../../units/useUnitMode";
 import {
   DistanceList,
   DistanceListItem,
@@ -23,6 +24,7 @@ import {
 } from "../../components/ListItems";
 import { ChevronRightIcon } from "../../icons/ChevronRight";
 import { PredictionBase, PredictionDialog } from "./PredictionDialog";
+import { useTranslation } from "../../i18n/i18n";
 
 const Wrap = styled.div`
   display: flex;
@@ -54,6 +56,25 @@ const InputWrapper = styled.div`
   min-width: 0;
 `;
 
+// In "both" mode two distance inputs share the wrapper; without a minimum
+// each one gets squeezed until the value disappears under the +/- buttons,
+// so they wrap to their own row instead.
+const DistanceInputs = styled(CountInputLayout)`
+  flex-wrap: wrap;
+
+  > * {
+    flex: 1 1 150px;
+  }
+`;
+
+// In "both" mode there is one dropdown per unit; stacked, since two race
+// names don't fit side by side.
+const SelectStack = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
 const OrText = styled.span`
   color: var(--color-text-muted);
   font-size: 0.9rem;
@@ -79,7 +100,9 @@ const PredictButton = styled.button`
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease,
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
     transform 0.1s ease;
 
   & > svg {
@@ -105,7 +128,30 @@ const PredictButton = styled.button`
 interface CalculatedResults {
   pacePerKm: string;
   kmPerHour: string;
+  pacePerMile: string;
+  milesPerHour: string;
 }
+
+const emptyResults: CalculatedResults = {
+  pacePerKm: "",
+  kmPerHour: "",
+  pacePerMile: "",
+  milesPerHour: "",
+};
+
+// Distance fields show at most three decimals, without trailing zeros.
+const formatDistanceValue = (value: number) => String(parseFloat(value.toFixed(3)));
+
+// The km field is canonical; the miles field is a synced view of it.
+const deriveMiles = (km: string) => {
+  const kmNumber = parseFloat(km);
+  return kmNumber > 0 ? formatDistanceValue(convertKmToMiles(kmNumber)) : "";
+};
+
+const deriveKm = (miles: string) => {
+  const milesNumber = parseFloat(miles);
+  return milesNumber > 0 ? formatDistanceValue(convertMilesToKm(milesNumber)) : "";
+};
 
 const timeUnits = ["hours", "minutes", "seconds"] as const;
 type TimeUnit = (typeof timeUnits)[number];
@@ -125,25 +171,29 @@ const fillSmallerUnits = (
   return filled;
 };
 
-export const DistanceToPace = () => {
+export const DistanceToPace = ({ unitMode }: { unitMode: UnitMode }) => {
+  const { t, distanceLabel } = useTranslation();
   const initialState: Record<DistanceToPaceUnits, string> = {
     hours: "",
     minutes: "",
     seconds: "",
     distance: "",
+    miles: "",
   };
 
-  // Create options for the select from distances
-  const distanceOptions = distances.map((distance) => ({
-    value: distance.km.toString(),
-    label: `${distance.label} (${distance.km}km)`,
-  }));
+  // One option list per unit; both carry the canonical km value, so either
+  // dropdown drives the same distance state.
+  const distanceOptionsFor = (unit: "km" | "miles") =>
+    distances.map((distance) => ({
+      value: distance.km.toString(),
+      label:
+        unit === "km"
+          ? `${distanceLabel(distance.label)} (${distance.km} km)`
+          : `${distanceLabel(distance.label)} (${convertKmToMiles(distance.km).toFixed(2)} mi)`,
+    }));
 
   const [state, setState] = useState(initialState);
-  const [results, setResults] = useState<CalculatedResults>({
-    pacePerKm: "",
-    kmPerHour: "",
-  });
+  const [results, setResults] = useState<CalculatedResults>(emptyResults);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [predictionBase, setPredictionBase] = useState<PredictionBase | null>(
     null,
@@ -155,8 +205,22 @@ export const DistanceToPace = () => {
     const targetName = e.target.name as keyof typeof initialState;
 
     setState((prevState) => {
+      if (targetName === "distance") {
+        return {
+          ...prevState,
+          distance: e.target.value,
+          miles: deriveMiles(e.target.value),
+        };
+      }
+      if (targetName === "miles") {
+        return {
+          ...prevState,
+          miles: e.target.value,
+          distance: deriveKm(e.target.value),
+        };
+      }
       const next = { ...prevState, [targetName]: e.target.value };
-      if (targetName !== "distance" && e.target.value) {
+      if (e.target.value) {
         return { ...next, ...fillSmallerUnits(targetName, next) };
       }
       return next;
@@ -168,11 +232,8 @@ export const DistanceToPace = () => {
   const calculate = (e: FocusEvent<HTMLInputElement>) => {
     const name = e.target.name as keyof typeof initialState;
     setState((prevState) => {
-      if (name === "distance") {
-        return {
-          ...prevState,
-          distance: unitFormater.distance(prevState.distance),
-        };
+      if (name === "distance" || name === "miles") {
+        return prevState;
       }
       return { ...prevState, ...carryTimeOverflow(prevState, true) };
     });
@@ -186,7 +247,15 @@ export const DistanceToPace = () => {
       if (fieldName === "distance") {
         return {
           ...prevState,
-          distance: unitFormater.distance(steppedValue),
+          distance: steppedValue,
+          miles: deriveMiles(steppedValue),
+        };
+      }
+      if (fieldName === "miles") {
+        return {
+          ...prevState,
+          miles: steppedValue,
+          distance: deriveKm(steppedValue),
         };
       }
       const next = {
@@ -214,14 +283,18 @@ export const DistanceToPace = () => {
   // The select only reflects the typed distance when it numerically matches
   // a known race ("10", "10.0" and "10.00" all mean 10k). Any other value
   // shows a "custom distance" placeholder instead of jumping around.
+  // Tolerance instead of equality so a distance entered in miles (which
+  // round-trips through rounded decimals) still snaps to the race.
   const matchedDistance = distances.find(
-    (distance) => distance.km === enteredDistanceKm,
+    (distance) => Math.abs(distance.km - enteredDistanceKm) < 0.01,
   );
   const selectValue = matchedDistance ? matchedDistance.km.toString() : "";
+  // The unit lives in the label above the select; the placeholder only
+  // reports the selection state.
   const selectPlaceholder =
-    state.distance && !matchedDistance
-      ? "Egendefinert distanse"
-      : "Velg distanse";
+    state.distance && !matchedDistance ? t.customDistance : t.selectDistance;
+  const selectLabelFor = (unit: "km" | "miles") =>
+    unit === "km" ? t.selectDistanceKm : t.selectDistanceMiles;
   const enteredSeconds = convertPaceToSeconds({
     hours: state.hours,
     minutes: state.minutes,
@@ -233,10 +306,12 @@ export const DistanceToPace = () => {
     if (!canPredict) return;
 
     const label =
-      distances.find((distance) => distance.km === enteredDistanceKm)?.label ??
-      `${enteredDistanceKm} km`;
+      matchedDistance?.label ??
+      (unitMode === "miles"
+        ? `${formatDistanceValue(convertKmToMiles(enteredDistanceKm))} ${t.milesSuffix}`
+        : `${enteredDistanceKm} ${t.kmSuffix}`);
     setPredictionBase({
-      km: enteredDistanceKm,
+      km: matchedDistance?.km ?? enteredDistanceKm,
       label,
       seconds: enteredSeconds,
     });
@@ -254,10 +329,7 @@ export const DistanceToPace = () => {
     // A calculation needs both a distance and a time; anything else shows
     // empty results instead of NaN/Infinity artifacts.
     if (!distance || distance <= 0 || totalSeconds <= 0) {
-      setResults({
-        pacePerKm: "",
-        kmPerHour: "",
-      });
+      setResults(emptyResults);
       return;
     }
     const requiredSpeedKmPerHour = calculateRequiredSpeed(distance, {
@@ -266,18 +338,24 @@ export const DistanceToPace = () => {
       seconds: state.seconds,
     });
     const time = convertKmToPace(requiredSpeedKmPerHour);
+    const mileTime = convertKmHToMilesPace(requiredSpeedKmPerHour);
     setResults({
       pacePerKm: formatTime(time),
       kmPerHour: requiredSpeedKmPerHour,
+      pacePerMile: formatTime(mileTime),
+      milesPerHour: convertKmHToMph(requiredSpeedKmPerHour),
     });
   }, [state.hours, state.minutes, state.seconds, state.distance]);
+
+  const showKm = unitMode !== "miles";
+  const showMiles = unitMode !== "km";
 
   return (
     <Wrap>
       <CountInputLayout>
         <CountInput
           placeholder="00"
-          label="Timer"
+          label={t.hours}
           onIncrement={() => handleIncrement("hours")}
           onDecrement={() => handleDecrement("hours")}
           name="hours"
@@ -287,7 +365,7 @@ export const DistanceToPace = () => {
         />
         <CountInput
           placeholder="00"
-          label="Minutter"
+          label={t.minutes}
           onIncrement={() => handleIncrement("minutes")}
           onDecrement={() => handleDecrement("minutes")}
           name="minutes"
@@ -298,7 +376,7 @@ export const DistanceToPace = () => {
         <CountInput
           placeholder="00"
           name="seconds"
-          label="Sekunder"
+          label={t.seconds}
           onIncrement={() => handleIncrement("seconds")}
           onDecrement={() => handleDecrement("seconds")}
           value={state.seconds}
@@ -310,41 +388,92 @@ export const DistanceToPace = () => {
       <Label>
         <InputGroup>
           <InputWrapper>
-            <CountInput
-              placeholder="42.195"
-              label="Distanse (km)"
-              onIncrement={() => handleIncrement("distance")}
-              onDecrement={() => handleDecrement("distance")}
-              value={state.distance}
-              onChange={onChange}
-              onBlur={calculate}
-              name="distance"
-            />
+            <DistanceInputs>
+              {showKm && (
+                <CountInput
+                  placeholder="42.195"
+                  label={t.distanceKm}
+                  onIncrement={() => handleIncrement("distance")}
+                  onDecrement={() => handleDecrement("distance")}
+                  value={state.distance}
+                  onChange={onChange}
+                  onBlur={calculate}
+                  name="distance"
+                />
+              )}
+              {showMiles && (
+                <CountInput
+                  placeholder="26.22"
+                  label={t.distanceMiles}
+                  onIncrement={() => handleIncrement("miles")}
+                  onDecrement={() => handleDecrement("miles")}
+                  value={state.miles}
+                  onChange={onChange}
+                  onBlur={calculate}
+                  name="miles"
+                />
+              )}
+            </DistanceInputs>
           </InputWrapper>
-          <OrText>eller</OrText>
+          <OrText>{t.or}</OrText>
           <InputWrapper>
-            <Select
-              placeholder={selectPlaceholder}
-              name="distance"
-              value={selectValue}
-              onChange={onChange}
-              options={distanceOptions}
-            />
+            <SelectStack>
+              {showKm && (
+                <Select
+                  label={selectLabelFor("km")}
+                  placeholder={selectPlaceholder}
+                  name="distance"
+                  value={selectValue}
+                  onChange={onChange}
+                  options={distanceOptionsFor("km")}
+                />
+              )}
+              {showMiles && (
+                <Select
+                  label={selectLabelFor("miles")}
+                  placeholder={selectPlaceholder}
+                  name="distance"
+                  value={selectValue}
+                  onChange={onChange}
+                  options={distanceOptionsFor("miles")}
+                />
+              )}
+            </SelectStack>
           </InputWrapper>
         </InputGroup>
       </Label>
 
       <DistanceList>
-        <DistanceListItem>
-          <RowLabel>Minutter pr kilometer</RowLabel>
-          <RowValue>{results.pacePerKm}</RowValue>
-        </DistanceListItem>
-        <DistanceListItem>
-          <RowLabel>Kilometer i timen</RowLabel>
-          <RowValue>
-            {results.kmPerHour ? `${results.kmPerHour} km/t` : ""}
-          </RowValue>
-        </DistanceListItem>
+        {showKm && (
+          <>
+            <DistanceListItem>
+              <RowLabel>{t.minutesPerKm}</RowLabel>
+              <RowValue>{results.pacePerKm}</RowValue>
+            </DistanceListItem>
+            <DistanceListItem>
+              <RowLabel>{t.kmPerHour}</RowLabel>
+              <RowValue>
+                {results.kmPerHour ? `${results.kmPerHour} ${t.kmhUnit}` : ""}
+              </RowValue>
+            </DistanceListItem>
+          </>
+        )}
+        {showMiles && (
+          <>
+            <DistanceListItem>
+              <RowLabel>{t.minutesPerMile}</RowLabel>
+              <RowValue>{results.pacePerMile}</RowValue>
+            </DistanceListItem>
+            <DistanceListItem>
+              <RowLabel>{t.milesPerHour}</RowLabel>
+              <RowValue>
+                {results.milesPerHour
+                  ? `${results.milesPerHour} ${t.mphUnit}`
+                  : ""}
+              </RowValue>
+            </DistanceListItem>
+          </>
+        )}
       </DistanceList>
 
       <PredictButton
@@ -352,7 +481,7 @@ export const DistanceToPace = () => {
         disabled={!canPredict}
         onClick={openPredictions}
       >
-        Prognoser og mellomtider
+        {t.predictButton}
         <ChevronRightIcon size={16} aria-hidden="true" />
       </PredictButton>
 
@@ -360,6 +489,7 @@ export const DistanceToPace = () => {
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         base={predictionBase}
+        unitMode={unitMode}
       />
     </Wrap>
   );

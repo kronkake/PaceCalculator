@@ -4,6 +4,9 @@ import { PaceCalculator } from "./views/PaceCalculator";
 import { useTheme } from "./theme/useTheme";
 import { MoonIcon } from "./icons/Moon";
 import { SunIcon } from "./icons/Sun";
+import { SegmentedControl } from "./components/SegmentedControl";
+import { UnitMode, useUnitMode } from "./units/useUnitMode";
+import { useTranslation } from "./i18n/i18n";
 
 const Main = styled.main`
   /* Lock the app to the visible viewport; overflow scrolls inside the
@@ -22,40 +25,59 @@ const Main = styled.main`
   }
 `;
 
+/* The h1 exists for SEO and screen readers; visually the toolbar is the
+   header. */
+const VisuallyHiddenTitle = styled.h1`
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+`;
+
 const Header = styled.header`
   width: 100%;
   max-width: 600px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 20px 0 12px;
+  gap: 8px;
+  padding: 16px 0 12px;
 
   @media (max-width: 560px) {
-    padding: 16px 16px 12px;
+    padding: 12px 16px;
   }
 `;
 
-const Title = styled.h1`
-  margin: 0;
-  font-size: 1.35rem;
-  letter-spacing: -0.01em;
+const UnitControl = styled.div`
+  flex: 1;
+  min-width: 0;
 `;
 
-const ThemeToggle = styled.button`
+const RoundButton = styled.button`
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex: 0 0 auto;
   width: 42px;
   height: 42px;
   border-radius: 50%;
   border: 1px solid var(--color-border);
   background: var(--color-surface);
   color: var(--color-text);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
   cursor: pointer;
   transition: background-color 0.2s ease, border-color 0.2s ease;
 
-  &:hover {
-    background: var(--color-surface-alt);
+  @media (hover: hover) {
+    &:hover {
+      background: var(--color-surface-alt);
+    }
   }
 
   &:focus-visible {
@@ -66,22 +88,45 @@ const ThemeToggle = styled.button`
 
 function App() {
   const { theme, toggleTheme } = useTheme();
+  const { unitMode, setUnitMode } = useUnitMode();
+  const { language, setLanguage, t } = useTranslation();
+
+  const unitModeOptions: Array<{ value: UnitMode; label: string }> = [
+    { value: "km", label: t.unitMetric },
+    { value: "miles", label: t.unitImperial },
+    { value: "both", label: t.bothUnits },
+  ];
 
   return (
     <Main>
+      <VisuallyHiddenTitle>{t.appTitle}</VisuallyHiddenTitle>
       <Header>
-        <Title>Pace Calculator</Title>
-        <ThemeToggle
+        <UnitControl>
+          <SegmentedControl
+            ariaLabel={t.selectUnits}
+            options={unitModeOptions}
+            value={unitMode}
+            onChange={setUnitMode}
+          />
+        </UnitControl>
+        <RoundButton
+          type="button"
+          onClick={() => setLanguage(language === "no" ? "en" : "no")}
+          aria-label={t.switchLanguage}
+        >
+          {language === "no" ? "EN" : "NO"}
+        </RoundButton>
+        <RoundButton
           type="button"
           onClick={toggleTheme}
           aria-label={
-            theme === "dark" ? "Bytt til lyst tema" : "Bytt til mørkt tema"
+            theme === "dark" ? t.switchToLightTheme : t.switchToDarkTheme
           }
         >
           {theme === "dark" ? <SunIcon /> : <MoonIcon />}
-        </ThemeToggle>
+        </RoundButton>
       </Header>
-      <PaceCalculator />
+      <PaceCalculator unitMode={unitMode} />
     </Main>
   );
 }

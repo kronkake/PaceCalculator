@@ -111,22 +111,30 @@ const clampTimeUnit = (value: string, max: number) => {
   return value.padStart(2, "0");
 };
 
+const formatSpeed = (value: string) => {
+  const speed = Number(value);
+  if (!value || Number.isNaN(speed)) {
+    return "";
+  }
+  if (speed < 0) {
+    return "0.00";
+  }
+  return speed.toFixed(2);
+};
+
 export const unitFormater: Record<PaceCalcUnits, (newValue: string) => string> =
   {
-    km: (value: string) => {
-      const km = Number(value);
-      if (!value || Number.isNaN(km)) {
-        return "";
-      }
-      if (km < 0) {
-        return "0.00";
-      }
-      return km.toFixed(2);
-    },
+    km: formatSpeed,
+    mph: formatSpeed,
     seconds: (value: string) => clampTimeUnit(value, 59),
     minutes: (value: string) => clampTimeUnit(value, 59),
+    mileSeconds: (value: string) => clampTimeUnit(value, 59),
+    mileMinutes: (value: string) => clampTimeUnit(value, 59),
     hours: (value: string) => clampTimeUnit(value, 23),
     distance: (value: string) => {
+      return value;
+    },
+    miles: (value: string) => {
       return value;
     },
   };

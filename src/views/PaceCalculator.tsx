@@ -4,6 +4,8 @@ import styled from "styled-components";
 import { PaceToDistance } from "./PaceCalculator/PaceToDistance";
 import { TabItem, Tabs } from "../components/Tabs";
 import { DistanceToPace } from "./PaceCalculator/DistanceToPace";
+import { UnitMode } from "../units/useUnitMode";
+import { useTranslation } from "../i18n/i18n";
 
 const Wrap = styled.div`
   display: flex;
@@ -24,15 +26,16 @@ const Wrap = styled.div`
   }
 `;
 
-export const PaceCalculator = () => {
+export const PaceCalculator = ({ unitMode }: { unitMode: UnitMode }) => {
+  const { t } = useTranslation();
   const tabs: TabItem[] = [
     {
-      label: "Kalkuler fart",
-      content: <PaceToDistance />,
+      label: t.tabPace,
+      content: <PaceToDistance unitMode={unitMode} />,
     },
     {
-      label: "Kalkuler distanse",
-      content: <DistanceToPace />,
+      label: t.tabDistance,
+      content: <DistanceToPace unitMode={unitMode} />,
     },
   ];
 

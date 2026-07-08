@@ -13,6 +13,14 @@ const TabsList = styled.div`
   border-bottom: 1px solid var(--color-border);
   background-color: var(--color-surface);
   position: relative;
+  /* Three tabs (dialog splits per unit) can outgrow a phone screen; the
+     list scrolls sideways rather than squeezing the labels. */
+  overflow-x: auto;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 `;
 
 const TabButton = styled.button<{ $isActive: boolean }>`
@@ -26,6 +34,8 @@ const TabButton = styled.button<{ $isActive: boolean }>`
     props.$isActive ? "var(--color-primary)" : "var(--color-text-muted)"};
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition: all 0.3s ease;
   position: relative;
   min-height: 48px;
@@ -114,7 +124,12 @@ export const Tabs: React.FC<TabsProps> = ({
 
         setActiveTabPlacement({
           width: coordinates.width,
-          placement: coordinates.left - wrapperOffsetLeft,
+          // Compensate for horizontal scroll: the indicator is positioned
+          // in content coordinates and scrolls along with the tabs.
+          placement:
+            coordinates.left -
+            wrapperOffsetLeft +
+            tabsListRef.current.scrollLeft,
         });
       }
     };

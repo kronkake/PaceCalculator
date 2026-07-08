@@ -1,5 +1,6 @@
 import React, { InputHTMLAttributes, useEffect, useRef } from "react";
 import styled from "styled-components";
+import { useTranslation } from "../i18n/i18n";
 
 const Layout = styled.div`
   display: flex;
@@ -119,6 +120,7 @@ export const CountInput = ({
   onDecrement,
   ...props
 }: InputProps) => {
+  const { t } = useTranslation();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Read the handlers through a ref so a long hold keeps calling the latest
   // callbacks instead of the ones captured when the press started.
@@ -190,7 +192,7 @@ export const CountInput = ({
       <CountButtonLayout>
         <CountButton
           type="button"
-          aria-label={`Reduser ${label}`}
+          aria-label={`${t.decrease} ${label}`}
           onPointerDown={(e) => handlePointerDown(e, "decrement")}
           onPointerUp={endHold}
           onPointerCancel={endHold}
@@ -205,7 +207,7 @@ export const CountInput = ({
 
         <CountButton
           type="button"
-          aria-label={`Øk ${label}`}
+          aria-label={`${t.increase} ${label}`}
           onPointerDown={(e) => handlePointerDown(e, "increment")}
           onPointerUp={endHold}
           onPointerCancel={endHold}

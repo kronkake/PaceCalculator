@@ -1,5 +1,6 @@
 import React, { ReactNode, useEffect, useId, useRef, useState } from "react";
 import styled from "styled-components";
+import { useTranslation } from "../i18n/i18n";
 
 const TRANSITION_MS = 250;
 
@@ -108,6 +109,7 @@ interface DialogProps {
 }
 
 export const Dialog = ({ open, onClose, title, children }: DialogProps) => {
+  const { t } = useTranslation();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   // Drives the transition styles separately from the native open state, so
@@ -159,7 +161,7 @@ export const Dialog = ({ open, onClose, title, children }: DialogProps) => {
     >
       <Header>
         <Title id={titleId}>{title}</Title>
-        <CloseButton type="button" onClick={onClose} aria-label="Lukk">
+        <CloseButton type="button" onClick={onClose} aria-label={t.close}>
           ×
         </CloseButton>
       </Header>
